@@ -2,6 +2,8 @@ export type EffectName = 'petals' | 'stars' | 'matrix' | 'fireworks'
 
 export type SceneKind = 'welcome' | 'letter' | 'memory' | 'quiz' | 'gallery' | 'finale'
 
+export type LanguageCode = 'zh-CN' | 'en'
+
 export interface ThemeTokens {
   accent: string
   accent2: string
@@ -47,6 +49,14 @@ export interface AccessConfig {
   hint?: string
 }
 
+export interface StoryLocale {
+  meta?: Partial<StoryContent['meta']>
+  access?: Partial<AccessConfig>
+  photos?: Array<Partial<PhotoItem> & Pick<PhotoItem, 'id'>>
+  scenes?: Array<Partial<Omit<Scene, 'options'>> & Pick<Scene, 'id'> & { options?: QuizOption[] }>
+  playlist?: Array<Partial<PlaylistTrack> & Pick<PlaylistTrack, 'title'>>
+}
+
 export interface StoryContent {
   meta: {
     title: string
@@ -62,6 +72,7 @@ export interface StoryContent {
   photos: PhotoItem[]
   scenes: Scene[]
   playlist?: PlaylistTrack[]
+  locales?: Partial<Record<LanguageCode, StoryLocale>>
 }
 
 export interface EncryptedStoryBundle {

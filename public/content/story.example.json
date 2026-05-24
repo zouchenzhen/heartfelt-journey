@@ -1,11 +1,11 @@
 {
   "meta": {
-    "title": "Our Private Journey",
-    "subtitle": "A private interactive memory quest.",
-    "coupleName": "You & Me",
+    "title": "我们的私密纪念馆",
+    "subtitle": "一个可以一步步打开的互动记忆礼物。",
+    "coupleName": "你和我",
     "startDate": "2024-05-20",
-    "location": "Your city",
-    "signature": "Built from our photos, words, and hidden checkpoints."
+    "location": "你们的城市",
+    "signature": "由照片、文字和隐藏检查点组成。"
   },
   "theme": {
     "accent": "#ff6b81",
@@ -17,11 +17,11 @@
   "access": {
     "enabled": true,
     "codeHash": "7182a571ddbe4752823cf4b8c38fd98720ae3ffac2aea0c22dd462fa8f6f0d9c",
-    "hint": "Only we know this code."
+    "hint": "只给对方看的提示。"
   },
   "playlist": [
     {
-      "title": "Our song",
+      "title": "我们的歌",
       "src": "./music/our-song.mp3"
     }
   ],
@@ -29,47 +29,98 @@
     {
       "id": "first",
       "src": "./sample/city.svg",
-      "alt": "First memory",
-      "caption": "Replace this with your real caption.",
+      "alt": "第一段记忆",
+      "caption": "把这里替换成你们真实的照片说明。",
       "date": "2024-05-20",
-      "location": "Somewhere"
+      "location": "某个地点"
     },
     {
       "id": "second",
       "src": "./sample/coffee.svg",
-      "alt": "Second memory",
-      "caption": "A daily moment worth saving.",
+      "alt": "第二段记忆",
+      "caption": "一个值得保存的日常瞬间。",
       "date": "2024-06-01",
-      "location": "Cafe"
+      "location": "咖啡馆"
     }
   ],
   "scenes": [
     {
       "id": "start",
       "kind": "welcome",
-      "eyebrow": "Mission 01",
-      "title": "Open the first door",
-      "body": "Write the first message your partner will see.",
+      "eyebrow": "任务 01",
+      "title": "打开第一扇门",
+      "body": "写下对方进入网页后看到的第一句话。",
       "photoIds": ["first"],
-      "unlockText": "Open next"
+      "unlockText": "打开下一页"
     },
     {
       "id": "album",
       "kind": "gallery",
-      "eyebrow": "Mission 02",
-      "title": "Walk through the memory wall",
-      "body": "Use photoIds to decide which photos appear in this room.",
+      "eyebrow": "任务 02",
+      "title": "走进记忆照片墙",
+      "body": "用 photoIds 控制这个房间展示哪些照片。",
       "photoIds": ["first", "second"],
-      "unlockText": "Continue"
+      "unlockText": "继续前进"
     },
     {
       "id": "finale",
       "kind": "finale",
-      "eyebrow": "Final room",
-      "title": "Launch the celebration",
-      "body": "End with the sentence only you would write.",
+      "eyebrow": "最终房间",
+      "title": "启动庆祝模式",
+      "body": "用一句只有你会写的话收尾。",
       "photoIds": ["second"],
-      "unlockText": "Celebrate"
+      "unlockText": "开始庆祝"
     }
-  ]
+  ],
+  "locales": {
+    "en": {
+      "meta": {
+        "title": "Our Private Journey",
+        "subtitle": "A private interactive memory quest.",
+        "coupleName": "You & Me",
+        "location": "Your city",
+        "signature": "Built from our photos, words, and hidden checkpoints."
+      },
+      "access": {
+        "hint": "Only we know this code."
+      },
+      "photos": [
+        {
+          "id": "first",
+          "alt": "First memory",
+          "caption": "Replace this with your real caption.",
+          "location": "Somewhere"
+        },
+        {
+          "id": "second",
+          "alt": "Second memory",
+          "caption": "A daily moment worth saving.",
+          "location": "Cafe"
+        }
+      ],
+      "scenes": [
+        {
+          "id": "start",
+          "eyebrow": "Mission 01",
+          "title": "Open the first door",
+          "body": "Write the first message your partner will see.",
+          "unlockText": "Open next"
+        },
+        {
+          "id": "album",
+          "eyebrow": "Mission 02",
+          "title": "Walk through the memory wall",
+          "body": "Use photoIds to decide which photos appear in this room.",
+          "unlockText": "Continue"
+        },
+        {
+          "id": "finale",
+          "eyebrow": "Final room",
+          "title": "Launch the celebration",
+          "body": "End with the sentence only you would write.",
+          "unlockText": "Celebrate"
+        }
+      ]
+    }
+  }
 }

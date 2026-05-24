@@ -30,6 +30,8 @@ Build:
 npm run build
 ```
 
+The product defaults to Chinese interaction copy. English is an optional extension available through the top-right language switch. For custom content, keep `story.json` as the Chinese source and add English overrides under `locales.en`.
+
 ## Features
 
 - Password entry for a private gift opening.
@@ -37,6 +39,7 @@ npm run build
 - Sequential story rooms: welcome, letter, memory, quiz, gallery, finale.
 - Large configurable photo library with captions, dates, and locations.
 - Visual effect modes: petals, stars, code rain, fireworks.
+- Chinese-first interaction copy with an optional English switch in the top-right corner.
 - Responsive layout for phone and desktop sharing.
 - Fully static deployment with no database or backend server.
 - Content configuration is separated from the open-source app engine.

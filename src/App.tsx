@@ -6,6 +6,7 @@ import {
   Check,
   ChevronRight,
   Gift,
+  Globe2,
   Heart,
   Images,
   KeyRound,
@@ -20,18 +21,32 @@ import {
   X,
 } from 'lucide-react'
 import './App.css'
+import { DEFAULT_LANGUAGE, LANGUAGE_LABELS, UI_TEXT, localizeStory } from './i18n'
 import { decryptStory, verifyAccessCode } from './lib/crypto'
 import { loadStory } from './lib/storyLoader'
-import type { EffectName, EncryptedStoryBundle, PhotoItem, Scene, StoryContent } from './types'
+import type { EffectName, EncryptedStoryBundle, LanguageCode, PhotoItem, Scene, StoryContent } from './types'
 
 type AuthMode = 'plain' | 'encrypted'
+type ErrorKey = '' | 'loadFailed' | 'passwordRejected' | 'codeRejected'
 
 function App() {
   const [story, setStory] = useState<StoryContent | null>(null)
   const [bundle, setBundle] = useState<EncryptedStoryBundle | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [errorKey, setErrorKey] = useState<ErrorKey>('')
   const [authenticated, setAuthenticated] = useState(false)
+  const [language, setLanguage] = useState<LanguageCode>(() => {
+    const saved = window.localStorage.getItem('heartfelt-language')
+    return saved === 'en' ? 'en' : DEFAULT_LANGUAGE
+  })
+
+  const t = UI_TEXT[language]
+  const localizedStory = story ? localizeStory(story, language) : null
+
+  function changeLanguage(nextLanguage: LanguageCode) {
+    setLanguage(nextLanguage)
+    window.localStorage.setItem('heartfelt-language', nextLanguage)
+  }
 
   useEffect(() => {
     let alive = true
@@ -47,7 +62,7 @@ function App() {
         }
       })
       .catch(() => {
-        if (alive) setError('Story content failed to load.')
+        if (alive) setErrorKey('loadFailed')
       })
       .finally(() => {
         if (alive) setLoading(false)
@@ -58,13 +73,13 @@ function App() {
   }, [])
 
   async function unlockWithPassword(password: string) {
-    setError('')
+    setErrorKey('')
     if (bundle) {
       try {
         setStory(await decryptStory(bundle, password))
         setAuthenticated(true)
       } catch {
-        setError('Password rejected. Check the private code and try again.')
+        setErrorKey('passwordRejected')
       }
       return
     }
@@ -73,24 +88,26 @@ function App() {
     if (await verifyAccessCode(password, story.access?.codeHash)) {
       setAuthenticated(true)
     } else {
-      setError('Code rejected. Try the hint or regenerate your content pack.')
+      setErrorKey('codeRejected')
     }
   }
 
-  if (loading) return <StatusScreen label="Loading memory vault" />
-  if (!story && !bundle) return <StatusScreen label={error || 'No story content found'} />
-  if (!story || !authenticated) {
+  if (loading) return <StatusScreen label={t.loading} />
+  if (!localizedStory && !bundle) return <StatusScreen label={errorKey ? t[errorKey] : t.noStory} />
+  if (!localizedStory || !authenticated) {
     return (
       <LockScreen
         mode={bundle ? 'encrypted' : 'plain'}
-        hint={story?.access?.hint}
-        error={error}
+        hint={localizedStory?.access?.hint}
+        error={errorKey ? t[errorKey] : ''}
+        language={language}
+        onLanguageChange={changeLanguage}
         onUnlock={unlockWithPassword}
       />
     )
   }
 
-  return <Journey story={story} />
+  return <Journey story={localizedStory} language={language} onLanguageChange={changeLanguage} />
 }
 
 function StatusScreen({ label }: { label: string }) {
@@ -106,15 +123,20 @@ function LockScreen({
   mode,
   hint,
   error,
+  language,
+  onLanguageChange,
   onUnlock,
 }: {
   mode: AuthMode
   hint?: string
   error: string
+  language: LanguageCode
+  onLanguageChange: (language: LanguageCode) => void
   onUnlock: (password: string) => Promise<void>
 }) {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
+  const t = UI_TEXT[language]
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -125,14 +147,15 @@ function LockScreen({
 
   return (
     <main className="lock-screen">
-      <section className="lock-panel" aria-label="Private entrance">
+      <LanguageSwitch language={language} onLanguageChange={onLanguageChange} floating />
+      <section className="lock-panel" aria-label={t.privateEntrance}>
         <div className="lock-mark">
           {mode === 'encrypted' ? <ShieldCheck aria-hidden="true" /> : <LockKeyhole aria-hidden="true" />}
         </div>
-        <p className="eyebrow">{mode === 'encrypted' ? 'Encrypted content pack' : 'Private entrance'}</p>
-        <h1>Open the memory quest</h1>
+        <p className="eyebrow">{mode === 'encrypted' ? t.encryptedPack : t.privateEntrance}</p>
+        <h1>{t.openQuest}</h1>
         <form onSubmit={submit} className="lock-form">
-          <label htmlFor="password">Access code</label>
+          <label htmlFor="password">{t.accessCode}</label>
           <div className="password-row">
             <KeyRound aria-hidden="true" />
             <input
@@ -143,7 +166,7 @@ function LockScreen({
               autoComplete="current-password"
               autoFocus
             />
-            <button type="submit" disabled={busy || !password.trim()} aria-label="Unlock">
+            <button type="submit" disabled={busy || !password.trim()} aria-label={t.unlock}>
               <ChevronRight aria-hidden="true" />
             </button>
           </div>
@@ -155,7 +178,15 @@ function LockScreen({
   )
 }
 
-function Journey({ story }: { story: StoryContent }) {
+function Journey({
+  story,
+  language,
+  onLanguageChange,
+}: {
+  story: StoryContent
+  language: LanguageCode
+  onLanguageChange: (language: LanguageCode) => void
+}) {
   const [activeId, setActiveId] = useState(story.scenes[0]?.id)
   const [unlockedIds, setUnlockedIds] = useState(() => new Set([story.scenes[0]?.id].filter(Boolean)))
   const [effect, setEffect] = useState<EffectName>(story.effects[0] || 'petals')
@@ -164,6 +195,7 @@ function Journey({ story }: { story: StoryContent }) {
   const [quizResponse, setQuizResponse] = useState('')
   const [soundEnabled, setSoundEnabled] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const t = UI_TEXT[language]
 
   const activeScene = story.scenes.find((scene) => scene.id === activeId) || story.scenes[0]
   const activeIndex = story.scenes.findIndex((scene) => scene.id === activeScene.id)
@@ -225,26 +257,29 @@ function Journey({ story }: { story: StoryContent }) {
           <p className="eyebrow">{story.meta.location}</p>
           <h1>{story.meta.title}</h1>
         </div>
-        <div className="metric-strip" aria-label="Journey stats">
-          <Metric icon={<Heart />} label="Together" value={`${days} days`} />
-          <Metric icon={<Images />} label="Photos" value={`${story.photos.length}`} />
-          <Metric icon={<MapIcon />} label="Rooms" value={`${unlockedIds.size}/${story.scenes.length}`} />
+        <div className="topbar-side">
+          <LanguageSwitch language={language} onLanguageChange={onLanguageChange} />
+          <div className="metric-strip" aria-label={language === 'zh-CN' ? '探索统计' : 'Journey stats'}>
+            <Metric icon={<Heart />} label={t.together} value={`${days} ${t.days}`} />
+            <Metric icon={<Images />} label={t.photos} value={`${story.photos.length}`} />
+            <Metric icon={<MapIcon />} label={t.rooms} value={`${unlockedIds.size}/${story.scenes.length}`} />
+          </div>
         </div>
       </header>
 
-      <section className="control-bar" aria-label="Experience controls">
-        <div className="segmented" aria-label="Effect mode">
+      <section className="control-bar" aria-label={language === 'zh-CN' ? '体验控制' : 'Experience controls'}>
+        <div className="segmented" aria-label={t.effectMode}>
           {story.effects.map((item) => (
             <button
               key={item}
               type="button"
               className={clsx(item === effect && 'active')}
               onClick={() => setEffect(item)}
-              aria-label={`Effect ${item}`}
-              title={`Effect: ${item}`}
+              aria-label={`${t.effectTitle} ${t.effectNames[item]}`}
+              title={`${t.effectTitle}: ${t.effectNames[item]}`}
             >
               <Palette aria-hidden="true" />
-              <span>{item}</span>
+              <span>{t.effectNames[item]}</span>
             </button>
           ))}
         </div>
@@ -252,15 +287,15 @@ function Journey({ story }: { story: StoryContent }) {
           type="button"
           className={clsx('icon-button', soundEnabled && 'active')}
           onClick={() => setSoundEnabled((value) => !value)}
-          aria-label="Toggle music"
-          title="Toggle music"
+          aria-label={t.toggleMusic}
+          title={t.toggleMusic}
         >
           {soundEnabled ? <Volume2 aria-hidden="true" /> : <Music aria-hidden="true" />}
         </button>
       </section>
 
       <section className="workspace">
-        <nav className="quest-map" aria-label="Memory rooms">
+        <nav className="quest-map" aria-label={t.memoryRooms}>
           <div className="progress-rail">
             <span style={{ height: `${progress}%` }} />
           </div>
@@ -277,7 +312,7 @@ function Journey({ story }: { story: StoryContent }) {
                 <span className="node-index">{String(index + 1).padStart(2, '0')}</span>
                 <span>
                   <strong>{scene.title}</strong>
-                  <small>{unlocked ? scene.eyebrow : 'Locked'}</small>
+                  <small>{unlocked ? scene.eyebrow : t.locked}</small>
                 </span>
               </button>
             )
@@ -315,11 +350,11 @@ function Journey({ story }: { story: StoryContent }) {
               <div className="scene-actions">
                 <button type="button" className="primary-action" onClick={unlockNext}>
                   <Gift aria-hidden="true" />
-                  {activeIndex === story.scenes.length - 1 ? 'Celebrate' : activeScene.unlockText || 'Continue'}
+                  {activeIndex === story.scenes.length - 1 ? t.celebrate : activeScene.unlockText || t.continue}
                 </button>
                 <button type="button" className="secondary-action" onClick={() => setCelebrating(true)}>
                   <Wand2 aria-hidden="true" />
-                  Spark
+                  {t.spark}
                 </button>
               </div>
             </div>
@@ -342,7 +377,7 @@ function Journey({ story }: { story: StoryContent }) {
         </section>
 
         <aside className="vault-panel">
-          <p className="eyebrow">Vault</p>
+          <p className="eyebrow">{t.vault}</p>
           <h2>{story.meta.subtitle}</h2>
           <div className="signature-card">
             <Sparkles aria-hidden="true" />
@@ -358,10 +393,10 @@ function Journey({ story }: { story: StoryContent }) {
         </aside>
       </section>
 
-      <section className="album-wall" aria-label="All memories">
+      <section className="album-wall" aria-label={language === 'zh-CN' ? '全部记忆' : 'All memories'}>
         <div>
-          <p className="eyebrow">Daily gallery</p>
-          <h2>Replace the samples with your own timeline.</h2>
+          <p className="eyebrow">{t.dailyGallery}</p>
+          <h2>{t.galleryHint}</h2>
         </div>
         <div className="album-grid">
           {story.photos.map((photo) => (
@@ -369,7 +404,7 @@ function Journey({ story }: { story: StoryContent }) {
               <img src={photo.src} alt={photo.alt} />
               <span>
                 <Camera aria-hidden="true" />
-                {photo.date || 'Memory'}
+                {photo.date || t.memory}
               </span>
               <strong>{photo.caption}</strong>
             </button>
@@ -377,7 +412,7 @@ function Journey({ story }: { story: StoryContent }) {
         </div>
       </section>
 
-      {selectedPhoto ? <PhotoModal photo={selectedPhoto} onClose={() => setSelectedPhoto(null)} /> : null}
+      {selectedPhoto ? <PhotoModal photo={selectedPhoto} closeLabel={t.close} onClose={() => setSelectedPhoto(null)} /> : null}
     </main>
   )
 }
@@ -392,11 +427,11 @@ function Metric({ icon, label, value }: { icon: ReactElement; label: string; val
   )
 }
 
-function PhotoModal({ photo, onClose }: { photo: PhotoItem; onClose: () => void }) {
+function PhotoModal({ photo, closeLabel, onClose }: { photo: PhotoItem; closeLabel: string; onClose: () => void }) {
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={photo.caption}>
       <div className="photo-modal">
-        <button type="button" className="icon-button close" onClick={onClose} aria-label="Close">
+        <button type="button" className="icon-button close" onClick={onClose} aria-label={closeLabel}>
           <X aria-hidden="true" />
         </button>
         <img src={photo.src} alt={photo.alt} />
@@ -405,6 +440,34 @@ function PhotoModal({ photo, onClose }: { photo: PhotoItem; onClose: () => void 
           <h2>{photo.caption}</h2>
         </div>
       </div>
+    </div>
+  )
+}
+
+function LanguageSwitch({
+  language,
+  floating = false,
+  onLanguageChange,
+}: {
+  language: LanguageCode
+  floating?: boolean
+  onLanguageChange: (language: LanguageCode) => void
+}) {
+  const t = UI_TEXT[language]
+  return (
+    <div className={clsx('language-switch', floating && 'floating')} aria-label={t.language}>
+      <Globe2 aria-hidden="true" />
+      {(['zh-CN', 'en'] as const).map((item) => (
+        <button
+          type="button"
+          key={item}
+          className={clsx(language === item && 'active')}
+          onClick={() => onLanguageChange(item)}
+          aria-pressed={language === item}
+        >
+          {LANGUAGE_LABELS[item]}
+        </button>
+      ))}
     </div>
   )
 }

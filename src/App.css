@@ -161,6 +161,54 @@
   font-size: clamp(38px, 6vw, 84px);
 }
 
+.topbar-side {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+
+.language-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  border: 1px solid rgba(22, 21, 26, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.76);
+  padding: 4px 6px 4px 10px;
+  box-shadow: 0 12px 30px rgba(22, 21, 26, 0.1);
+}
+
+.language-switch.floating {
+  position: fixed;
+  z-index: 5;
+  top: 18px;
+  right: 18px;
+}
+
+.language-switch svg {
+  width: 16px;
+  height: 16px;
+  color: rgba(22, 21, 26, 0.64);
+}
+
+.language-switch button {
+  min-width: 44px;
+  min-height: 28px;
+  border: 0;
+  border-radius: 6px;
+  color: rgba(22, 21, 26, 0.64);
+  background: transparent;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.language-switch button.active {
+  color: white;
+  background: var(--ink, #16151a);
+}
+
 .metric-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(112px, 1fr));
@@ -730,6 +778,14 @@
     grid-template-columns: 1fr;
   }
 
+  .topbar-side {
+    justify-items: stretch;
+  }
+
+  .topbar-side .language-switch {
+    justify-self: end;
+  }
+
   .metric-strip {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -766,6 +822,10 @@
   .vault-panel,
   .photo-modal {
     grid-template-columns: 1fr;
+  }
+
+  .topbar-side .language-switch {
+    justify-self: start;
   }
 
   .control-bar {
