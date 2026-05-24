@@ -69,7 +69,8 @@
 .memory-stage,
 .game-modal,
 .photo-portal,
-.photo-actions {
+.photo-actions,
+.dialog-edge-tab {
   position: relative;
   z-index: 3;
 }
@@ -257,6 +258,10 @@
   padding: clamp(22px, 5vw, 40px);
 }
 
+.intro-modal {
+  padding-right: clamp(54px, 6vw, 72px);
+}
+
 .boot-card {
   position: relative;
   z-index: 3;
@@ -333,7 +338,59 @@
   max-height: 34vh;
   overflow: auto;
   padding: clamp(14px, 2.5vw, 20px);
+  padding-right: clamp(50px, 4vw, 60px);
   transform: translateX(-50%);
+}
+
+.fold-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.76);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.fold-button:hover {
+  color: #16151a;
+  background: #c9fff2;
+}
+
+.fold-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.dialog-edge-tab {
+  position: fixed;
+  right: 0;
+  bottom: clamp(82px, 12vh, 118px);
+  z-index: 8;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-right: 0;
+  border-radius: 8px 0 0 8px;
+  color: #16151a;
+  background: linear-gradient(135deg, #ffd1e2, #c9fff2);
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 900;
+  box-shadow: 0 14px 48px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(14px);
+}
+
+.dialog-edge-tab svg {
+  width: 16px;
+  height: 16px;
 }
 
 .choice-grid {
@@ -487,6 +544,7 @@
     linear-gradient(180deg, rgba(37, 26, 36, 0.78), rgba(13, 13, 18, 0.84)),
     rgba(13, 13, 18, 0.72);
   padding: 10px;
+  padding-right: 50px;
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.36);
   backdrop-filter: blur(18px);
 }
@@ -606,6 +664,13 @@
     bottom: 14px;
     width: calc(100vw - 24px);
     max-height: 38vh;
+    padding-right: 48px;
+  }
+
+  .dialog-edge-tab {
+    bottom: 18px;
+    min-height: 40px;
+    padding: 0 10px;
   }
 
   .game-modal h2 {

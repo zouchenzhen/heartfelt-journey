@@ -1,7 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import clsx from 'clsx'
-import { ChevronRight, Gamepad2, Globe2, Heart, KeyRound, LockKeyhole, Music, ShieldCheck, Sparkles, Volume2 } from 'lucide-react'
+import {
+  ChevronRight,
+  Gamepad2,
+  Globe2,
+  Heart,
+  KeyRound,
+  LockKeyhole,
+  Maximize2,
+  Minimize2,
+  Music,
+  ShieldCheck,
+  Sparkles,
+  Volume2,
+} from 'lucide-react'
 import './App.css'
 import { DEFAULT_LANGUAGE, LANGUAGE_LABELS, UI_TEXT, localizeStory } from './i18n'
 import { decryptStory, verifyAccessCode } from './lib/crypto'
@@ -194,6 +207,7 @@ function ImmersiveGame({
   const [celebrating, setCelebrating] = useState(false)
   const [musicEnabled, setMusicEnabled] = useState(false)
   const [musicVolume, setMusicVolume] = useState(0.68)
+  const [dialogCollapsed, setDialogCollapsed] = useState(false)
   const [typedBody, setTypedBody] = useState('')
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const ambientRef = useRef<AmbientHandle | null>(null)
@@ -235,6 +249,7 @@ function ImmersiveGame({
 
   function startGame() {
     activateMusic()
+    setDialogCollapsed(false)
     setMode('dialog')
   }
 
@@ -308,6 +323,7 @@ function ImmersiveGame({
   function resumeDialog() {
     setResponse('')
     setPendingAction(null)
+    setDialogCollapsed(false)
     setMode('dialog')
   }
 
@@ -358,12 +374,28 @@ function ImmersiveGame({
 
       <section className="memory-stage" aria-live="polite">
         {mode === 'intro' ? (
-          <IntroPanel story={story} language={language} onStart={startGame} />
+          dialogCollapsed ? (
+            <CollapsedDialogTab language={language} onExpand={() => setDialogCollapsed(false)} />
+          ) : (
+            <IntroPanel
+              story={story}
+              language={language}
+              onStart={startGame}
+              onCollapse={() => setDialogCollapsed(true)}
+            />
+          )
         ) : (
           <>
             <PhotoPortal photo={featuredPhoto} mode={mode} />
-            {mode === 'photo' ? (
-              <PhotoViewActions response={response} language={language} onResume={resumeDialog} />
+            {dialogCollapsed ? (
+              <CollapsedDialogTab language={language} onExpand={() => setDialogCollapsed(false)} />
+            ) : mode === 'photo' ? (
+              <PhotoViewActions
+                response={response}
+                language={language}
+                onResume={resumeDialog}
+                onCollapse={() => setDialogCollapsed(true)}
+              />
             ) : (
               <DialogPanel
                 story={story}
@@ -377,6 +409,7 @@ function ImmersiveGame({
                 onChoice={handleChoice}
                 onResume={resumeDialog}
                 onContinue={continueAfterResponse}
+                onCollapse={() => setDialogCollapsed(true)}
               />
             )}
           </>
@@ -394,13 +427,16 @@ function IntroPanel({
   story,
   language,
   onStart,
+  onCollapse,
 }: {
   story: StoryContent
   language: LanguageCode
   onStart: () => void
+  onCollapse: () => void
 }) {
   return (
     <section className="game-modal intro-modal">
+      <FoldButton language={language} onCollapse={onCollapse} />
       <div className="modal-icon">
         <Gamepad2 aria-hidden="true" />
       </div>
@@ -431,6 +467,7 @@ function DialogPanel({
   onChoice,
   onResume,
   onContinue,
+  onCollapse,
 }: {
   story: StoryContent
   scene: Scene
@@ -443,10 +480,12 @@ function DialogPanel({
   onChoice: (choice: SceneChoice) => void
   onResume: () => void
   onContinue: () => void
+  onCollapse: () => void
 }) {
   if (mode === 'transition') {
     return (
       <section className="game-modal dialog-modal transition-modal">
+        <FoldButton language={language} onCollapse={onCollapse} />
         <p className="kicker">{language === 'zh-CN' ? '主线推进中' : 'Quest advancing'}</p>
         <h2>{language === 'zh-CN' ? '下一段记忆正在加载...' : 'Loading the next memory...'}</h2>
       </section>
@@ -456,6 +495,7 @@ function DialogPanel({
   if (mode === 'ending') {
     return (
       <section className="game-modal dialog-modal ending-modal">
+        <FoldButton language={language} onCollapse={onCollapse} />
         <p className="kicker">{language === 'zh-CN' ? '最终房间已打开' : 'Final room unlocked'}</p>
         <h2>{scene.title}</h2>
         <p className="dialog-text">{response || scene.body}</p>
@@ -468,6 +508,7 @@ function DialogPanel({
     const canContinue = Boolean(pendingAction)
     return (
       <section className="game-modal dialog-modal">
+        <FoldButton language={language} onCollapse={onCollapse} />
         <p className="kicker">{scene.eyebrow}</p>
         <h2>{scene.title}</h2>
         <p className="dialog-text">{response}</p>
@@ -487,6 +528,7 @@ function DialogPanel({
 
   return (
     <section className="game-modal dialog-modal">
+      <FoldButton language={language} onCollapse={onCollapse} />
       <p className="kicker">{scene.eyebrow}</p>
       <h2>{scene.title}</h2>
       <p className="dialog-text typing">{typedBody}</p>
@@ -510,19 +552,46 @@ function PhotoViewActions({
   response,
   language,
   onResume,
+  onCollapse,
 }: {
   response: string
   language: LanguageCode
   onResume: () => void
+  onCollapse: () => void
 }) {
   return (
     <aside className="photo-actions" aria-label={language === 'zh-CN' ? '照片查看操作' : 'Photo actions'}>
+      <FoldButton language={language} onCollapse={onCollapse} />
       <p>{response}</p>
       <button type="button" className="choice-button primary" onClick={onResume}>
         <ChevronRight aria-hidden="true" />
         {language === 'zh-CN' ? '看完了，回到选择' : 'Back to choices'}
       </button>
     </aside>
+  )
+}
+
+function FoldButton({ language, onCollapse }: { language: LanguageCode; onCollapse: () => void }) {
+  const label = language === 'zh-CN' ? '折叠弹窗' : 'Collapse dialog'
+  return (
+    <button type="button" className="fold-button" onClick={onCollapse} aria-label={label} title={label}>
+      <Minimize2 aria-hidden="true" />
+    </button>
+  )
+}
+
+function CollapsedDialogTab({ language, onExpand }: { language: LanguageCode; onExpand: () => void }) {
+  return (
+    <button
+      type="button"
+      className="dialog-edge-tab"
+      onClick={onExpand}
+      aria-label={language === 'zh-CN' ? '展开弹窗' : 'Expand dialog'}
+      title={language === 'zh-CN' ? '展开弹窗' : 'Expand dialog'}
+    >
+      <Maximize2 aria-hidden="true" />
+      <span>{language === 'zh-CN' ? '展开' : 'Open'}</span>
+    </button>
   )
 }
 
