@@ -208,6 +208,7 @@ function ImmersiveGame({
   const [musicEnabled, setMusicEnabled] = useState(false)
   const [musicVolume, setMusicVolume] = useState(0.68)
   const [dialogCollapsed, setDialogCollapsed] = useState(false)
+  const [photoCollapsed, setPhotoCollapsed] = useState(false)
   const [typedBody, setTypedBody] = useState('')
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const ambientRef = useRef<AmbientHandle | null>(null)
@@ -250,6 +251,7 @@ function ImmersiveGame({
   function startGame() {
     activateMusic()
     setDialogCollapsed(false)
+    setPhotoCollapsed(false)
     setMode('dialog')
   }
 
@@ -281,6 +283,7 @@ function ImmersiveGame({
     setPendingAction(null)
     if (choice.action === 'photo') {
       setSelectedPhoto(scenePhotos[0] || story.photos[0] || null)
+      setPhotoCollapsed(false)
       setMode('photo')
       return
     }
@@ -312,6 +315,7 @@ function ImmersiveGame({
         setSelectedPhoto(null)
         setResponse('')
         setPendingAction(null)
+        setPhotoCollapsed(false)
         setMode('dialog')
       }, 720)
       return
@@ -386,7 +390,16 @@ function ImmersiveGame({
           )
         ) : (
           <>
-            <PhotoPortal photo={featuredPhoto} mode={mode} />
+            {photoCollapsed ? (
+              <CollapsedPhotoTab language={language} onExpand={() => setPhotoCollapsed(false)} />
+            ) : (
+              <PhotoPortal
+                photo={featuredPhoto}
+                mode={mode}
+                language={language}
+                onCollapse={() => setPhotoCollapsed(true)}
+              />
+            )}
             {dialogCollapsed ? (
               <CollapsedDialogTab language={language} onExpand={() => setDialogCollapsed(false)} />
             ) : mode === 'photo' ? (
@@ -436,7 +449,7 @@ function IntroPanel({
 }) {
   return (
     <section className="game-modal intro-modal">
-      <FoldButton language={language} onCollapse={onCollapse} />
+      <FoldButton language={language} target="dialog" onCollapse={onCollapse} />
       <div className="modal-icon">
         <Gamepad2 aria-hidden="true" />
       </div>
@@ -485,7 +498,7 @@ function DialogPanel({
   if (mode === 'transition') {
     return (
       <section className="game-modal dialog-modal transition-modal">
-        <FoldButton language={language} onCollapse={onCollapse} />
+        <FoldButton language={language} target="dialog" onCollapse={onCollapse} />
         <p className="kicker">{language === 'zh-CN' ? '主线推进中' : 'Quest advancing'}</p>
         <h2>{language === 'zh-CN' ? '下一段记忆正在加载...' : 'Loading the next memory...'}</h2>
       </section>
@@ -495,7 +508,7 @@ function DialogPanel({
   if (mode === 'ending') {
     return (
       <section className="game-modal dialog-modal ending-modal">
-        <FoldButton language={language} onCollapse={onCollapse} />
+        <FoldButton language={language} target="dialog" onCollapse={onCollapse} />
         <p className="kicker">{language === 'zh-CN' ? '最终房间已打开' : 'Final room unlocked'}</p>
         <h2>{scene.title}</h2>
         <p className="dialog-text">{response || scene.body}</p>
@@ -508,7 +521,7 @@ function DialogPanel({
     const canContinue = Boolean(pendingAction)
     return (
       <section className="game-modal dialog-modal">
-        <FoldButton language={language} onCollapse={onCollapse} />
+        <FoldButton language={language} target="dialog" onCollapse={onCollapse} />
         <p className="kicker">{scene.eyebrow}</p>
         <h2>{scene.title}</h2>
         <p className="dialog-text">{response}</p>
@@ -528,7 +541,7 @@ function DialogPanel({
 
   return (
     <section className="game-modal dialog-modal">
-      <FoldButton language={language} onCollapse={onCollapse} />
+      <FoldButton language={language} target="dialog" onCollapse={onCollapse} />
       <p className="kicker">{scene.eyebrow}</p>
       <h2>{scene.title}</h2>
       <p className="dialog-text typing">{typedBody}</p>
@@ -561,7 +574,7 @@ function PhotoViewActions({
 }) {
   return (
     <aside className="photo-actions" aria-label={language === 'zh-CN' ? '照片查看操作' : 'Photo actions'}>
-      <FoldButton language={language} onCollapse={onCollapse} />
+      <FoldButton language={language} target="dialog" onCollapse={onCollapse} />
       <p>{response}</p>
       <button type="button" className="choice-button primary" onClick={onResume}>
         <ChevronRight aria-hidden="true" />
@@ -571,8 +584,23 @@ function PhotoViewActions({
   )
 }
 
-function FoldButton({ language, onCollapse }: { language: LanguageCode; onCollapse: () => void }) {
-  const label = language === 'zh-CN' ? '折叠弹窗' : 'Collapse dialog'
+function FoldButton({
+  language,
+  target,
+  onCollapse,
+}: {
+  language: LanguageCode
+  target: 'dialog' | 'photo'
+  onCollapse: () => void
+}) {
+  const label =
+    target === 'photo'
+      ? language === 'zh-CN'
+        ? '隐藏照片'
+        : 'Hide photo'
+      : language === 'zh-CN'
+        ? '折叠弹窗'
+        : 'Collapse dialog'
   return (
     <button type="button" className="fold-button" onClick={onCollapse} aria-label={label} title={label}>
       <Minimize2 aria-hidden="true" />
@@ -595,10 +623,36 @@ function CollapsedDialogTab({ language, onExpand }: { language: LanguageCode; on
   )
 }
 
-function PhotoPortal({ photo, mode }: { photo?: PhotoItem | null; mode: GameMode }) {
+function CollapsedPhotoTab({ language, onExpand }: { language: LanguageCode; onExpand: () => void }) {
+  return (
+    <button
+      type="button"
+      className="photo-edge-tab"
+      onClick={onExpand}
+      aria-label={language === 'zh-CN' ? '展开照片' : 'Show photo'}
+      title={language === 'zh-CN' ? '展开照片' : 'Show photo'}
+    >
+      <Maximize2 aria-hidden="true" />
+      <span>{language === 'zh-CN' ? '照片' : 'Photo'}</span>
+    </button>
+  )
+}
+
+function PhotoPortal({
+  photo,
+  mode,
+  language,
+  onCollapse,
+}: {
+  photo?: PhotoItem | null
+  mode: GameMode
+  language: LanguageCode
+  onCollapse: () => void
+}) {
   if (!photo) return null
   return (
     <div className={clsx('photo-portal', mode === 'photo' && 'spotlight')}>
+      <FoldButton language={language} target="photo" onCollapse={onCollapse} />
       <img src={photo.src} alt={photo.alt} />
       <div>
         <strong>{photo.date}</strong>
@@ -659,7 +713,7 @@ function LoveCanvas({ title, active }: { title: string; active: boolean }) {
     function drawHeart(x: number, y: number, size: number, color: string, alpha: number) {
       context.save()
       context.translate(x, y)
-      context.scale(size, size)
+      context.scale(size, -size)
       context.globalAlpha = alpha
       context.fillStyle = color
       context.beginPath()
