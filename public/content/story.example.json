@@ -1,0 +1,75 @@
+{
+  "meta": {
+    "title": "Our Private Journey",
+    "subtitle": "A private interactive memory quest.",
+    "coupleName": "You & Me",
+    "startDate": "2024-05-20",
+    "location": "Your city",
+    "signature": "Built from our photos, words, and hidden checkpoints."
+  },
+  "theme": {
+    "accent": "#ff6b81",
+    "accent2": "#22c7a9",
+    "ink": "#16151a",
+    "paper": "#fff7ef"
+  },
+  "effects": ["petals", "stars", "matrix", "fireworks"],
+  "access": {
+    "enabled": true,
+    "codeHash": "7182a571ddbe4752823cf4b8c38fd98720ae3ffac2aea0c22dd462fa8f6f0d9c",
+    "hint": "Only we know this code."
+  },
+  "playlist": [
+    {
+      "title": "Our song",
+      "src": "./music/our-song.mp3"
+    }
+  ],
+  "photos": [
+    {
+      "id": "first",
+      "src": "./sample/city.svg",
+      "alt": "First memory",
+      "caption": "Replace this with your real caption.",
+      "date": "2024-05-20",
+      "location": "Somewhere"
+    },
+    {
+      "id": "second",
+      "src": "./sample/coffee.svg",
+      "alt": "Second memory",
+      "caption": "A daily moment worth saving.",
+      "date": "2024-06-01",
+      "location": "Cafe"
+    }
+  ],
+  "scenes": [
+    {
+      "id": "start",
+      "kind": "welcome",
+      "eyebrow": "Mission 01",
+      "title": "Open the first door",
+      "body": "Write the first message your partner will see.",
+      "photoIds": ["first"],
+      "unlockText": "Open next"
+    },
+    {
+      "id": "album",
+      "kind": "gallery",
+      "eyebrow": "Mission 02",
+      "title": "Walk through the memory wall",
+      "body": "Use photoIds to decide which photos appear in this room.",
+      "photoIds": ["first", "second"],
+      "unlockText": "Continue"
+    },
+    {
+      "id": "finale",
+      "kind": "finale",
+      "eyebrow": "Final room",
+      "title": "Launch the celebration",
+      "body": "End with the sentence only you would write.",
+      "photoIds": ["second"],
+      "unlockText": "Celebrate"
+    }
+  ]
+}

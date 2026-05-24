@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 675" role="img" aria-label="stars memory">
+  <defs>
+    <radialGradient id="g" cx=".5" cy=".35" r=".8">
+      <stop stop-color="#29335c"/>
+      <stop offset=".62" stop-color="#17192a"/>
+      <stop offset="1" stop-color="#08090d"/>
+    </radialGradient>
+  </defs>
+  <rect width="900" height="675" fill="url(#g)"/>
+  <g fill="#fff7ef">
+    <circle cx="122" cy="96" r="3"/>
+    <circle cx="246" cy="170" r="4"/>
+    <circle cx="378" cy="90" r="2"/>
+    <circle cx="590" cy="148" r="3"/>
+    <circle cx="760" cy="96" r="4"/>
+    <circle cx="822" cy="238" r="3"/>
+    <circle cx="168" cy="282" r="2"/>
+  </g>
+  <path d="M0 520c148-95 247-72 366 4 94 60 195 48 274-12 80-61 168-67 260-20v183H0z" fill="#11131b"/>
+  <path d="M367 438c-46-36-101-65-101-120 0-40 52-51 82-16 30-35 82-24 82 16 0 55-55 84-63 120z" fill="#22c7a9"/>
+  <path d="M528 438c-46-36-101-65-101-120 0-40 52-51 82-16 30-35 82-24 82 16 0 55-55 84-63 120z" fill="#ff6b81"/>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 675" role="img" aria-label="code memory">
+  <rect width="900" height="675" fill="#101114"/>
+  <rect x="92" y="94" width="716" height="488" rx="18" fill="#191b22" stroke="#343741"/>
+  <circle cx="132" cy="134" r="10" fill="#ff6b81"/>
+  <circle cx="168" cy="134" r="10" fill="#ffd166"/>
+  <circle cx="204" cy="134" r="10" fill="#22c7a9"/>
+  <g font-family="Consolas, monospace" font-size="32" fill="#f8edf5">
+    <text x="130" y="224">&lt;memory date="520"&gt;</text>
+    <text x="170" y="286" fill="#22c7a9">const promise = "again";</text>
+    <text x="170" y="348" fill="#ffcc5c">if (you.smile) deploy();</text>
+    <text x="130" y="410">&lt;/memory&gt;</text>
+  </g>
+  <path d="M630 414c-58-46-128-83-128-153 0-51 66-65 104-20 38-45 104-31 104 20 0 70-70 107-80 153z" fill="#ff6b81" opacity=".9"/>
+</svg>

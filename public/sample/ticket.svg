@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 675" role="img" aria-label="ticket memory">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop stop-color="#16151a"/>
+      <stop offset=".55" stop-color="#2c5d63"/>
+      <stop offset="1" stop-color="#ffcc5c"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="675" fill="url(#g)"/>
+  <g transform="translate(142 202) rotate(-5 310 140)">
+    <path d="M50 0h520c0 42 60 42 60 84v112c0 42-60 42-60 84H50c0-42-60-42-60-84V84C-10 42 50 42 50 0z" fill="#fff7ef"/>
+    <path d="M430 30v220" stroke="#16151a" stroke-width="4" stroke-dasharray="14 12" opacity=".35"/>
+    <rect x="78" y="72" width="270" height="24" rx="12" fill="#ff6b81"/>
+    <rect x="78" y="122" width="210" height="18" rx="9" fill="#22c7a9"/>
+    <rect x="78" y="168" width="290" height="18" rx="9" fill="#16151a" opacity=".22"/>
+    <path d="M486 92h82v74h-82z" fill="#16151a"/>
+    <path d="M486 190h82" stroke="#16151a" stroke-width="14" stroke-linecap="round"/>
+  </g>
+</svg>

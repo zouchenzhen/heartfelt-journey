@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 675" role="img" aria-label="rain memory">
+  <defs>
+    <linearGradient id="g" x1="0" x2="0" y1="0" y2="1">
+      <stop stop-color="#44566c"/>
+      <stop offset="1" stop-color="#182229"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="675" fill="url(#g)"/>
+  <g stroke="#c4f1ec" stroke-width="6" stroke-linecap="round" opacity=".45">
+    <path d="M100 40 60 130M220 20 180 110M340 70 300 160M520 30 480 120M690 60 650 150M820 24 780 114"/>
+    <path d="M145 230 105 320M300 210 260 300M465 250 425 340M626 220 586 310M790 250 750 340"/>
+  </g>
+  <path d="M246 368c50-110 255-110 406 0-143-32-279-32-406 0z" fill="#ff6b81"/>
+  <path d="M449 370v120c0 52 72 52 72 0" fill="none" stroke="#fff7ef" stroke-width="18" stroke-linecap="round"/>
+  <ellipse cx="450" cy="575" rx="280" ry="34" fill="#0d1116" opacity=".45"/>
+</svg>
