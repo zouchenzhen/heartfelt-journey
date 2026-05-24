@@ -1,33 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, FormEvent, ReactElement } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
 import clsx from 'clsx'
-import {
-  Camera,
-  Check,
-  ChevronRight,
-  Gift,
-  Globe2,
-  Heart,
-  Images,
-  KeyRound,
-  LockKeyhole,
-  Map as MapIcon,
-  Music,
-  Palette,
-  ShieldCheck,
-  Sparkles,
-  Volume2,
-  Wand2,
-  X,
-} from 'lucide-react'
+import { ChevronRight, Gamepad2, Globe2, Heart, KeyRound, LockKeyhole, Music, ShieldCheck, Sparkles } from 'lucide-react'
 import './App.css'
 import { DEFAULT_LANGUAGE, LANGUAGE_LABELS, UI_TEXT, localizeStory } from './i18n'
 import { decryptStory, verifyAccessCode } from './lib/crypto'
 import { loadStory } from './lib/storyLoader'
-import type { EffectName, EncryptedStoryBundle, LanguageCode, PhotoItem, Scene, StoryContent } from './types'
+import type { EncryptedStoryBundle, LanguageCode, PhotoItem, QuizOption, Scene, StoryContent } from './types'
 
 type AuthMode = 'plain' | 'encrypted'
 type ErrorKey = '' | 'loadFailed' | 'passwordRejected' | 'codeRejected'
+type GameMode = 'intro' | 'dialog' | 'response' | 'photo' | 'transition' | 'ending'
+type SceneChoice = {
+  label: string
+  response: string
+  action: 'advance' | 'stay' | 'photo' | 'celebrate'
+  correct?: boolean
+}
 
 function App() {
   const [story, setStory] = useState<StoryContent | null>(null)
@@ -107,14 +96,17 @@ function App() {
     )
   }
 
-  return <Journey story={localizedStory} language={language} onLanguageChange={changeLanguage} />
+  return <ImmersiveGame story={localizedStory} language={language} onLanguageChange={changeLanguage} />
 }
 
 function StatusScreen({ label }: { label: string }) {
   return (
     <main className="status-screen">
-      <Sparkles aria-hidden="true" />
-      <p>{label}</p>
+      <LoveCanvas title={label} active />
+      <div className="boot-card">
+        <Sparkles aria-hidden="true" />
+        <p>{label}</p>
+      </div>
     </main>
   )
 }
@@ -146,14 +138,20 @@ function LockScreen({
   }
 
   return (
-    <main className="lock-screen">
-      <LanguageSwitch language={language} onLanguageChange={onLanguageChange} floating />
-      <section className="lock-panel" aria-label={t.privateEntrance}>
-        <div className="lock-mark">
+    <main className="game-shell">
+      <LoveCanvas title="💗 心动纪念馆 💗" active />
+      <LanguageSwitch language={language} onLanguageChange={onLanguageChange} />
+      <section className="game-modal lock-modal" aria-label={t.privateEntrance}>
+        <div className="modal-icon">
           {mode === 'encrypted' ? <ShieldCheck aria-hidden="true" /> : <LockKeyhole aria-hidden="true" />}
         </div>
-        <p className="eyebrow">{mode === 'encrypted' ? t.encryptedPack : t.privateEntrance}</p>
+        <p className="kicker">{mode === 'encrypted' ? t.encryptedPack : t.privateEntrance}</p>
         <h1>{t.openQuest}</h1>
+        <p className="dialog-text">
+          {language === 'zh-CN'
+            ? '输入口令后，主线会自动开始。接下来只需要跟着弹窗做选择。'
+            : 'Enter the code and the main quest will start. Follow the pop-up choices from there.'}
+        </p>
         <form onSubmit={submit} className="lock-form">
           <label htmlFor="password">{t.accessCode}</label>
           <div className="password-row">
@@ -178,7 +176,7 @@ function LockScreen({
   )
 }
 
-function Journey({
+function ImmersiveGame({
   story,
   language,
   onLanguageChange,
@@ -187,61 +185,107 @@ function Journey({
   language: LanguageCode
   onLanguageChange: (language: LanguageCode) => void
 }) {
-  const [activeId, setActiveId] = useState(story.scenes[0]?.id)
-  const [unlockedIds, setUnlockedIds] = useState(() => new Set([story.scenes[0]?.id].filter(Boolean)))
-  const [effect, setEffect] = useState<EffectName>(story.effects[0] || 'petals')
-  const [celebrating, setCelebrating] = useState(false)
+  const [mode, setMode] = useState<GameMode>('intro')
+  const [sceneIndex, setSceneIndex] = useState(0)
+  const [response, setResponse] = useState('')
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoItem | null>(null)
-  const [quizResponse, setQuizResponse] = useState('')
-  const [soundEnabled, setSoundEnabled] = useState(false)
+  const [celebrating, setCelebrating] = useState(false)
+  const [musicEnabled, setMusicEnabled] = useState(false)
+  const [typedBody, setTypedBody] = useState('')
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const t = UI_TEXT[language]
+  const ambientRef = useRef<AmbientHandle | null>(null)
 
-  const activeScene = story.scenes.find((scene) => scene.id === activeId) || story.scenes[0]
-  const activeIndex = story.scenes.findIndex((scene) => scene.id === activeScene.id)
+  const currentScene = story.scenes[sceneIndex] || story.scenes[0]
+  const nextScene = story.scenes[sceneIndex + 1]
   const photosById = useMemo(() => new Map(story.photos.map((photo) => [photo.id, photo])), [story.photos])
-  const activePhotos = (activeScene.photoIds || []).map((id) => photosById.get(id)).filter(Boolean) as PhotoItem[]
-  const progress = Math.round((unlockedIds.size / story.scenes.length) * 100)
-  const days = daysBetween(story.meta.startDate)
+  const scenePhotos = (currentScene.photoIds || []).map((id) => photosById.get(id)).filter(Boolean) as PhotoItem[]
+  const featuredPhoto = selectedPhoto || scenePhotos[0] || story.photos[0]
   const track = story.playlist?.find((item) => item.src)
+  const progress = Math.round(((sceneIndex + 1) / story.scenes.length) * 100)
+
+  useEffect(() => {
+    if (mode !== 'dialog') return
+    let index = 0
+    const resetTimer = window.setTimeout(() => setTypedBody(''), 0)
+    const text = currentScene.body
+    const timer = window.setInterval(() => {
+      index += 1
+      setTypedBody(text.slice(0, index))
+      if (index >= text.length) window.clearInterval(timer)
+    }, 24)
+    return () => {
+      window.clearTimeout(resetTimer)
+      window.clearInterval(timer)
+    }
+  }, [currentScene.body, mode])
 
   useEffect(() => {
     const audio = audioRef.current
-    if (!audio) return
-    if (soundEnabled) {
-      audio.play().catch(() => setSoundEnabled(false))
-    } else {
-      audio.pause()
+    if (track && audio) {
+      if (musicEnabled) audio.play().catch(() => setMusicEnabled(false))
+      else audio.pause()
+      return
     }
-  }, [soundEnabled])
 
-  function unlockNext() {
-    const next = story.scenes[activeIndex + 1]
-    setUnlockedIds((current) => {
-      const copy = new Set(current)
-      copy.add(activeScene.id)
-      if (next) copy.add(next.id)
-      return copy
-    })
-    if (next) {
-      setActiveId(next.id)
-      setQuizResponse('')
-    } else {
+    if (musicEnabled && !ambientRef.current) {
+      ambientRef.current = startAmbientMusic()
+    } else if (!musicEnabled && ambientRef.current) {
+      ambientRef.current.stop()
+      ambientRef.current = null
+    }
+  }, [musicEnabled, track])
+
+  useEffect(() => {
+    return () => {
+      ambientRef.current?.stop()
+    }
+  }, [])
+
+  function startGame() {
+    setMusicEnabled(true)
+    setMode('dialog')
+  }
+
+  function handleChoice(choice: SceneChoice) {
+    setResponse(choice.response)
+    if (choice.action === 'photo') {
+      setSelectedPhoto(scenePhotos[0] || story.photos[0] || null)
+      setMode('photo')
+      return
+    }
+    if (choice.action === 'celebrate') {
       setCelebrating(true)
-      window.setTimeout(() => setCelebrating(false), 1600)
+      setMode('ending')
+      return
     }
+    if (choice.action === 'advance') {
+      setMode('response')
+      window.setTimeout(() => {
+        if (nextScene) {
+          setMode('transition')
+          window.setTimeout(() => {
+            setSceneIndex((value) => value + 1)
+            setSelectedPhoto(null)
+            setResponse('')
+            setMode('dialog')
+          }, 850)
+        } else {
+          setCelebrating(true)
+          setMode('ending')
+        }
+      }, choice.correct ? 620 : 900)
+      return
+    }
+    setMode('response')
   }
 
-  function chooseOption(scene: Scene, optionIndex: number) {
-    const option = scene.options?.[optionIndex]
-    if (!option) return
-    setQuizResponse(option.response)
-    if (option.correct) {
-      window.setTimeout(unlockNext, 520)
-    }
+  function resumeDialog() {
+    setResponse('')
+    setMode('dialog')
   }
 
-  const style = {
+  const choices = buildChoices(currentScene, Boolean(nextScene), language)
+  const shellStyle = {
     '--accent': story.theme.accent,
     '--accent-2': story.theme.accent2,
     '--ink': story.theme.ink,
@@ -249,213 +293,296 @@ function Journey({
   } as CSSProperties
 
   return (
-    <main className="journey" style={style}>
+    <main className={clsx('game-shell', `scene-${currentScene.kind}`, celebrating && 'celebrating')} style={shellStyle}>
       {track ? <audio ref={audioRef} src={track.src} loop preload="metadata" /> : null}
-      <EffectLayer effect={effect} active={celebrating} />
-      <header className="topbar">
+      <LoveCanvas title={story.meta.title} active={musicEnabled || celebrating} />
+      <LanguageSwitch language={language} onLanguageChange={onLanguageChange} />
+      <button
+        type="button"
+        className={clsx('music-pill', musicEnabled && 'active')}
+        onClick={() => setMusicEnabled((value) => !value)}
+      >
+        <Music aria-hidden="true" />
+        {language === 'zh-CN' ? (musicEnabled ? '甜甜 BGM 开' : '开启 BGM') : musicEnabled ? 'BGM on' : 'Start BGM'}
+      </button>
+
+      <div className="quest-hud" aria-label={language === 'zh-CN' ? '主线进度' : 'Quest progress'}>
+        <span>{String(sceneIndex + 1).padStart(2, '0')}</span>
         <div>
-          <p className="eyebrow">{story.meta.location}</p>
-          <h1>{story.meta.title}</h1>
+          <strong>{currentScene.eyebrow}</strong>
+          <i style={{ width: `${progress}%` }} />
         </div>
-        <div className="topbar-side">
-          <LanguageSwitch language={language} onLanguageChange={onLanguageChange} />
-          <div className="metric-strip" aria-label={language === 'zh-CN' ? '探索统计' : 'Journey stats'}>
-            <Metric icon={<Heart />} label={t.together} value={`${days} ${t.days}`} />
-            <Metric icon={<Images />} label={t.photos} value={`${story.photos.length}`} />
-            <Metric icon={<MapIcon />} label={t.rooms} value={`${unlockedIds.size}/${story.scenes.length}`} />
-          </div>
-        </div>
-      </header>
+      </div>
 
-      <section className="control-bar" aria-label={language === 'zh-CN' ? '体验控制' : 'Experience controls'}>
-        <div className="segmented" aria-label={t.effectMode}>
-          {story.effects.map((item) => (
-            <button
-              key={item}
-              type="button"
-              className={clsx(item === effect && 'active')}
-              onClick={() => setEffect(item)}
-              aria-label={`${t.effectTitle} ${t.effectNames[item]}`}
-              title={`${t.effectTitle}: ${t.effectNames[item]}`}
-            >
-              <Palette aria-hidden="true" />
-              <span>{t.effectNames[item]}</span>
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          className={clsx('icon-button', soundEnabled && 'active')}
-          onClick={() => setSoundEnabled((value) => !value)}
-          aria-label={t.toggleMusic}
-          title={t.toggleMusic}
-        >
-          {soundEnabled ? <Volume2 aria-hidden="true" /> : <Music aria-hidden="true" />}
-        </button>
+      <section className="memory-stage" aria-live="polite">
+        {mode === 'intro' ? (
+          <IntroPanel story={story} language={language} onStart={startGame} />
+        ) : (
+          <>
+            <PhotoPortal photo={featuredPhoto} mode={mode} />
+            <DialogPanel
+              story={story}
+              scene={currentScene}
+              mode={mode}
+              typedBody={typedBody}
+              response={response}
+              choices={choices}
+              language={language}
+              onChoice={handleChoice}
+              onResume={resumeDialog}
+            />
+          </>
+        )}
       </section>
 
-      <section className="workspace">
-        <nav className="quest-map" aria-label={t.memoryRooms}>
-          <div className="progress-rail">
-            <span style={{ height: `${progress}%` }} />
-          </div>
-          {story.scenes.map((scene, index) => {
-            const unlocked = unlockedIds.has(scene.id)
-            return (
-              <button
-                type="button"
-                key={scene.id}
-                disabled={!unlocked}
-                className={clsx('map-node', activeScene.id === scene.id && 'active', unlocked && 'unlocked')}
-                onClick={() => setActiveId(scene.id)}
-              >
-                <span className="node-index">{String(index + 1).padStart(2, '0')}</span>
-                <span>
-                  <strong>{scene.title}</strong>
-                  <small>{unlocked ? scene.eyebrow : t.locked}</small>
-                </span>
-              </button>
-            )
-          })}
-        </nav>
-
-        <section className="scene-window" aria-live="polite">
-          <div className="window-chrome">
-            <span />
-            <span />
-            <span />
-            <p>{story.meta.coupleName}</p>
-          </div>
-          <div className="scene-grid">
-            <div className="scene-copy">
-              <p className="eyebrow">{activeScene.eyebrow}</p>
-              <h2>{activeScene.title}</h2>
-              <p>{activeScene.body}</p>
-
-              {activeScene.kind === 'quiz' && activeScene.options ? (
-                <div className="quiz-block">
-                  <h3>{activeScene.prompt}</h3>
-                  <div className="quiz-options">
-                    {activeScene.options.map((option, index) => (
-                      <button key={option.label} type="button" onClick={() => chooseOption(activeScene, index)}>
-                        <Check aria-hidden="true" />
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                  {quizResponse ? <p className="quiz-response">{quizResponse}</p> : null}
-                </div>
-              ) : null}
-
-              <div className="scene-actions">
-                <button type="button" className="primary-action" onClick={unlockNext}>
-                  <Gift aria-hidden="true" />
-                  {activeIndex === story.scenes.length - 1 ? t.celebrate : activeScene.unlockText || t.continue}
-                </button>
-                <button type="button" className="secondary-action" onClick={() => setCelebrating(true)}>
-                  <Wand2 aria-hidden="true" />
-                  {t.spark}
-                </button>
-              </div>
-            </div>
-
-            <div className="photo-stack" aria-label="Scene photos">
-              {activePhotos.map((photo, index) => (
-                <button
-                  type="button"
-                  key={photo.id}
-                  className="feature-photo"
-                  style={{ '--tilt': `${index % 2 === 0 ? -2 : 2}deg` } as CSSProperties}
-                  onClick={() => setSelectedPhoto(photo)}
-                >
-                  <img src={photo.src} alt={photo.alt} />
-                  <span>{photo.caption}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <aside className="vault-panel">
-          <p className="eyebrow">{t.vault}</p>
-          <h2>{story.meta.subtitle}</h2>
-          <div className="signature-card">
-            <Sparkles aria-hidden="true" />
-            <p>{story.meta.signature}</p>
-          </div>
-          <div className="mini-gallery">
-            {story.photos.slice(0, 6).map((photo) => (
-              <button type="button" key={photo.id} onClick={() => setSelectedPhoto(photo)}>
-                <img src={photo.src} alt={photo.alt} />
-              </button>
-            ))}
-          </div>
-        </aside>
-      </section>
-
-      <section className="album-wall" aria-label={language === 'zh-CN' ? '全部记忆' : 'All memories'}>
-        <div>
-          <p className="eyebrow">{t.dailyGallery}</p>
-          <h2>{t.galleryHint}</h2>
-        </div>
-        <div className="album-grid">
-          {story.photos.map((photo) => (
-            <button type="button" key={photo.id} className="album-card" onClick={() => setSelectedPhoto(photo)}>
-              <img src={photo.src} alt={photo.alt} />
-              <span>
-                <Camera aria-hidden="true" />
-                {photo.date || t.memory}
-              </span>
-              <strong>{photo.caption}</strong>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {selectedPhoto ? <PhotoModal photo={selectedPhoto} closeLabel={t.close} onClose={() => setSelectedPhoto(null)} /> : null}
+      <div className="tap-hint">
+        {language === 'zh-CN' ? '跟随弹窗选择推进主线' : 'Follow the pop-up choices to advance'}
+      </div>
     </main>
   )
 }
 
-function Metric({ icon, label, value }: { icon: ReactElement; label: string; value: string }) {
+function IntroPanel({
+  story,
+  language,
+  onStart,
+}: {
+  story: StoryContent
+  language: LanguageCode
+  onStart: () => void
+}) {
   return (
-    <div className="metric">
-      {icon}
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
+    <section className="game-modal intro-modal">
+      <div className="modal-icon">
+        <Gamepad2 aria-hidden="true" />
+      </div>
+      <p className="kicker">{story.meta.location}</p>
+      <h1>{story.meta.title}</h1>
+      <p className="dialog-text">
+        {language === 'zh-CN'
+          ? '这是一条已经写好的主线。你不需要找菜单，也不需要翻页面，只要按弹窗做选择，记忆会自己打开。'
+          : 'This is a guided main quest. No menus, no page hunting. Choose from each pop-up and the memories will open by themselves.'}
+      </p>
+      <button type="button" className="choice-button primary" onClick={onStart}>
+        <Heart aria-hidden="true" />
+        {language === 'zh-CN' ? '开始主线' : 'Start quest'}
+      </button>
+    </section>
   )
 }
 
-function PhotoModal({ photo, closeLabel, onClose }: { photo: PhotoItem; closeLabel: string; onClose: () => void }) {
-  return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={photo.caption}>
-      <div className="photo-modal">
-        <button type="button" className="icon-button close" onClick={onClose} aria-label={closeLabel}>
-          <X aria-hidden="true" />
+function DialogPanel({
+  story,
+  scene,
+  mode,
+  typedBody,
+  response,
+  choices,
+  language,
+  onChoice,
+  onResume,
+}: {
+  story: StoryContent
+  scene: Scene
+  mode: GameMode
+  typedBody: string
+  response: string
+  choices: SceneChoice[]
+  language: LanguageCode
+  onChoice: (choice: SceneChoice) => void
+  onResume: () => void
+}) {
+  if (mode === 'transition') {
+    return (
+      <section className="game-modal dialog-modal transition-modal">
+        <p className="kicker">{language === 'zh-CN' ? '主线推进中' : 'Quest advancing'}</p>
+        <h2>{language === 'zh-CN' ? '下一段记忆正在加载...' : 'Loading the next memory...'}</h2>
+      </section>
+    )
+  }
+
+  if (mode === 'ending') {
+    return (
+      <section className="game-modal dialog-modal ending-modal">
+        <p className="kicker">{language === 'zh-CN' ? '最终房间已打开' : 'Final room unlocked'}</p>
+        <h2>{scene.title}</h2>
+        <p className="dialog-text">{response || scene.body}</p>
+        <p className="signature">{story.meta.signature}</p>
+      </section>
+    )
+  }
+
+  if (mode === 'response' || mode === 'photo') {
+    return (
+      <section className="game-modal dialog-modal">
+        <p className="kicker">{scene.eyebrow}</p>
+        <h2>{mode === 'photo' ? (language === 'zh-CN' ? '记忆照片弹出' : 'Memory photo opened') : scene.title}</h2>
+        <p className="dialog-text">{response}</p>
+        <button type="button" className="choice-button primary" onClick={onResume}>
+          <ChevronRight aria-hidden="true" />
+          {language === 'zh-CN' ? '回到弹窗选择' : 'Back to choices'}
         </button>
-        <img src={photo.src} alt={photo.alt} />
-        <div>
-          <p className="eyebrow">{[photo.date, photo.location].filter(Boolean).join(' / ')}</p>
-          <h2>{photo.caption}</h2>
-        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section className="game-modal dialog-modal">
+      <p className="kicker">{scene.eyebrow}</p>
+      <h2>{scene.title}</h2>
+      <p className="dialog-text typing">{typedBody}</p>
+      <div className="choice-grid">
+        {choices.map((choice) => (
+          <button
+            type="button"
+            key={choice.label}
+            className={clsx('choice-button', choice.action === 'advance' && 'primary')}
+            onClick={() => onChoice(choice)}
+          >
+            {choice.label}
+          </button>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function PhotoPortal({ photo, mode }: { photo?: PhotoItem | null; mode: GameMode }) {
+  if (!photo) return null
+  return (
+    <div className={clsx('photo-portal', mode === 'photo' && 'spotlight')}>
+      <img src={photo.src} alt={photo.alt} />
+      <div>
+        <strong>{photo.date}</strong>
+        <p>{photo.caption}</p>
       </div>
     </div>
   )
 }
 
+function LoveCanvas({ title, active }: { title: string; active: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+
+  useEffect(() => {
+    const canvasElement = canvasRef.current
+    if (!canvasElement) return
+    const drawingContext = canvasElement.getContext('2d')
+    if (!drawingContext) return
+    const canvasSurface: HTMLCanvasElement = canvasElement
+    const context: CanvasRenderingContext2D = drawingContext
+
+    let frame = 0
+    let raf = 0
+    const particles = Array.from({ length: 150 }, (_, index) => ({
+      seed: index * 17,
+      t: Math.random() * Math.PI * 2,
+      orbit: 0.8 + Math.random() * 0.46,
+      size: 3 + Math.random() * 7,
+      speed: 0.004 + Math.random() * 0.004,
+      alpha: 0.35 + Math.random() * 0.55,
+    }))
+    const floaters = Array.from({ length: 18 }, (_, index) => ({
+      text: index % 3 === 0 ? title : index % 3 === 1 ? '💗' : '520',
+      x: Math.random(),
+      y: Math.random(),
+      speed: 0.18 + Math.random() * 0.28,
+      size: 18 + Math.random() * 18,
+      alpha: 0.22 + Math.random() * 0.32,
+    }))
+
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      const width = window.innerWidth
+      const height = window.innerHeight
+      canvasSurface.width = Math.floor(width * dpr)
+      canvasSurface.height = Math.floor(height * dpr)
+      canvasSurface.style.width = `${width}px`
+      canvasSurface.style.height = `${height}px`
+      context.setTransform(dpr, 0, 0, dpr, 0, 0)
+    }
+
+    function heartPoint(t: number, scale: number) {
+      const x = 16 * Math.sin(t) ** 3
+      const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)
+      return { x: x * scale, y: -y * scale }
+    }
+
+    function drawHeart(x: number, y: number, size: number, color: string, alpha: number) {
+      context.save()
+      context.translate(x, y)
+      context.scale(size, size)
+      context.globalAlpha = alpha
+      context.fillStyle = color
+      context.beginPath()
+      context.moveTo(0, 0.35)
+      context.bezierCurveTo(0.7, 1, 1.45, -0.18, 0, -0.74)
+      context.bezierCurveTo(-1.45, -0.18, -0.7, 1, 0, 0.35)
+      context.closePath()
+      context.fill()
+      context.restore()
+    }
+
+    function render() {
+      const width = window.innerWidth
+      const height = window.innerHeight
+      frame += active ? 1 : 0.38
+      context.clearRect(0, 0, width, height)
+      context.fillStyle = '#0b0b0d'
+      context.fillRect(0, 0, width, height)
+
+      const cx = width / 2
+      const cy = height / 2 - height * 0.04
+      const base = Math.min(width, height) * 0.012
+      const pulse = 1 + Math.sin(frame * 0.055) * 0.1
+      const colors = ['#ff6ea6', '#ff96bf', '#ffc3d6', '#22c7a9']
+
+      particles.forEach((particle, index) => {
+        particle.t += particle.speed * (active ? 1.8 : 1)
+        const point = heartPoint(particle.t + particle.seed, base * pulse * particle.orbit)
+        drawHeart(cx + point.x, cy + point.y, particle.size, colors[index % colors.length], particle.alpha)
+      })
+
+      floaters.forEach((floater, index) => {
+        floater.y -= floater.speed / Math.max(height, 1)
+        floater.x += Math.sin(frame * 0.01 + index) * 0.0008
+        if (floater.y < -0.1) {
+          floater.y = 1.08
+          floater.x = Math.random()
+        }
+        context.save()
+        context.globalAlpha = floater.alpha
+        context.fillStyle = index % 2 === 0 ? '#ffd1e2' : '#c9fff2'
+        context.font = `700 ${floater.size}px "Microsoft YaHei", system-ui, sans-serif`
+        context.translate(floater.x * width, floater.y * height)
+        context.rotate(Math.sin(frame * 0.008 + index) * 0.08)
+        context.fillText(floater.text, 0, 0)
+        context.restore()
+      })
+
+      raf = requestAnimationFrame(render)
+    }
+
+    resize()
+    window.addEventListener('resize', resize)
+    render()
+    return () => {
+      window.removeEventListener('resize', resize)
+      cancelAnimationFrame(raf)
+    }
+  }, [active, title])
+
+  return <canvas ref={canvasRef} className="love-canvas" aria-hidden="true" />
+}
+
 function LanguageSwitch({
   language,
-  floating = false,
   onLanguageChange,
 }: {
   language: LanguageCode
-  floating?: boolean
   onLanguageChange: (language: LanguageCode) => void
 }) {
-  const t = UI_TEXT[language]
   return (
-    <div className={clsx('language-switch', floating && 'floating')} aria-label={t.language}>
+    <div className="language-switch" aria-label={UI_TEXT[language].language}>
       <Globe2 aria-hidden="true" />
       {(['zh-CN', 'en'] as const).map((item) => (
         <button
@@ -472,44 +599,105 @@ function LanguageSwitch({
   )
 }
 
-function EffectLayer({ effect, active }: { effect: EffectName; active: boolean }) {
-  const particles = useMemo(
-    () =>
-      Array.from({ length: effect === 'matrix' ? 54 : 42 }, (_, index) => ({
-        id: index,
-        left: `${(index * 37) % 100}%`,
-        delay: `${(index % 12) * 0.21}s`,
-        duration: `${5 + (index % 7) * 0.55}s`,
-        angle: `${index * 29}deg`,
-      })),
-    [effect],
-  )
+function buildChoices(scene: Scene, hasNext: boolean, language: LanguageCode): SceneChoice[] {
+  if (scene.kind === 'quiz' && scene.options?.length) {
+    return scene.options.map((option: QuizOption) => ({
+      label: option.label,
+      response: option.response,
+      correct: option.correct,
+      action: option.correct ? 'advance' : 'stay',
+    }))
+  }
 
-  return (
-    <div className={clsx('effect-layer', `effect-${effect}`, active && 'celebrate')} aria-hidden="true">
-      {particles.map((particle) => (
-        <span
-          key={particle.id}
-          style={
-            {
-              '--left': particle.left,
-              '--delay': particle.delay,
-              '--duration': particle.duration,
-              '--angle': particle.angle,
-            } as CSSProperties
-          }
-        />
-      ))}
-    </div>
-  )
+  if (scene.kind === 'gallery') {
+    return [
+      {
+        label: language === 'zh-CN' ? '打开一张记忆照片' : 'Open a memory photo',
+        response: language === 'zh-CN' ? '照片被点亮了。先看这一张，然后继续主线。' : 'The photo lights up. Take a look, then continue.',
+        action: 'photo',
+      },
+      {
+        label: language === 'zh-CN' ? '继续下一关' : 'Continue quest',
+        response: language === 'zh-CN' ? '图集检查点通过，下一段主线已解锁。' : 'Gallery checkpoint cleared. The next memory is unlocked.',
+        action: hasNext ? 'advance' : 'celebrate',
+      },
+    ]
+  }
+
+  if (scene.kind === 'finale') {
+    return [
+      {
+        label: language === 'zh-CN' ? '启动最终庆祝' : 'Launch final celebration',
+        response: language === 'zh-CN' ? '所有记忆房间都打开了。现在进入只属于你们的庆祝模式。' : 'All rooms are open. Enter celebration mode.',
+        action: 'celebrate',
+      },
+      {
+        label: language === 'zh-CN' ? '再停留一会儿' : 'Stay a little longer',
+        response: language === 'zh-CN' ? '那就再让心跳和星光多停留一会儿。' : 'Then let the heartbeat and stars stay a little longer.',
+        action: 'stay',
+      },
+    ]
+  }
+
+  return [
+    {
+      label: scene.unlockText || (language === 'zh-CN' ? '继续主线' : 'Continue quest'),
+      response: language === 'zh-CN' ? '选择已确认，下一段记忆正在打开。' : 'Choice confirmed. Opening the next memory.',
+      action: hasNext ? 'advance' : 'celebrate',
+    },
+    {
+      label: language === 'zh-CN' ? '先看看这张照片' : 'Look at this photo first',
+      response: language === 'zh-CN' ? '这张照片被临时放大了。看完后会回到主线弹窗。' : 'This photo is enlarged for a moment. Return to the quest after viewing.',
+      action: 'photo',
+    },
+    {
+      label: language === 'zh-CN' ? '害羞，等一下' : 'Wait a second',
+      response: language === 'zh-CN' ? '没关系，主线会等你。准备好以后再继续。' : 'No rush. The quest will wait until you are ready.',
+      action: 'stay',
+    },
+  ]
 }
 
-function daysBetween(startDate: string): number {
-  const start = new Date(`${startDate}T00:00:00`)
-  if (Number.isNaN(start.getTime())) return 0
-  const now = new Date()
-  const diff = now.getTime() - start.getTime()
-  return Math.max(0, Math.floor(diff / 86_400_000))
+type AmbientHandle = {
+  stop: () => void
+}
+
+function startAmbientMusic(): AmbientHandle {
+  const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+  if (!AudioContextClass) return { stop() {} }
+  const context = new AudioContextClass()
+  const master = context.createGain()
+  master.gain.value = 0.026
+  master.connect(context.destination)
+
+  const notes = [261.63, 329.63, 392, 523.25]
+  const oscillators = notes.map((frequency, index) => {
+    const oscillator = context.createOscillator()
+    const gain = context.createGain()
+    oscillator.type = index % 2 === 0 ? 'sine' : 'triangle'
+    oscillator.frequency.value = frequency
+    gain.gain.value = 0.18 / notes.length
+    oscillator.connect(gain)
+    gain.connect(master)
+    oscillator.start()
+    return oscillator
+  })
+
+  const timer = window.setInterval(() => {
+    const now = context.currentTime
+    master.gain.cancelScheduledValues(now)
+    master.gain.setValueAtTime(master.gain.value, now)
+    master.gain.linearRampToValueAtTime(0.04, now + 0.6)
+    master.gain.linearRampToValueAtTime(0.024, now + 1.8)
+  }, 2200)
+
+  return {
+    stop() {
+      window.clearInterval(timer)
+      oscillators.forEach((oscillator) => oscillator.stop())
+      context.close()
+    },
+  }
 }
 
 export default App
