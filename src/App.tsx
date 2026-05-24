@@ -684,6 +684,17 @@ function LoveCanvas({ title, active }: { title: string; active: boolean }) {
       speed: 0.0018 + Math.random() * 0.003,
       alpha: 0.35 + Math.random() * 0.55,
     }))
+    const ambientHearts = Array.from({ length: 180 }, (_, index) => ({
+      seed: index * 29,
+      x: Math.random(),
+      y: Math.random(),
+      drift: -0.14 + Math.random() * 0.28,
+      speed: 0.08 + Math.random() * 0.22,
+      wobble: 0.006 + Math.random() * 0.012,
+      size: 2.4 + Math.random() * 5.6,
+      alpha: 0.16 + Math.random() * 0.32,
+      color: index % 5,
+    }))
     const floaters = Array.from({ length: 14 }, (_, index) => ({
       text: index % 5 === 0 ? title : index % 2 === 0 ? '💗' : '520',
       x: Math.random(),
@@ -740,6 +751,22 @@ function LoveCanvas({ title, active }: { title: string; active: boolean }) {
       const swayX = Math.sin(frame * 0.012) * Math.min(width, height) * 0.018
       const swayY = Math.cos(frame * 0.01) * Math.min(width, height) * 0.012
       const colors = ['#ff5f9f', '#ff7fb0', '#ff96bf', '#ffc3d6', '#c9fff2']
+
+      ambientHearts.forEach((heart) => {
+        const speedScale = active ? 1.25 : 0.72
+        heart.y -= (heart.speed * speedScale) / Math.max(height, 1)
+        heart.x += (heart.drift * speedScale) / Math.max(width, 1)
+        heart.x += Math.sin(frame * heart.wobble + heart.seed) * 0.00055
+        if (heart.y < -0.12) {
+          heart.y = 1.1 + Math.random() * 0.08
+          heart.x = Math.random()
+        }
+        if (heart.x < -0.1) heart.x = 1.08
+        if (heart.x > 1.1) heart.x = -0.08
+        const floatX = heart.x * width
+        const floatY = heart.y * height + Math.sin(frame * heart.wobble * 1.8 + heart.seed) * 9
+        drawHeart(floatX, floatY, heart.size, colors[heart.color], heart.alpha)
+      })
 
       particles.forEach((particle, index) => {
         particle.t += particle.speed * (active ? 1.8 : 1)
@@ -870,13 +897,15 @@ type AmbientHandle = {
   setVolume: (volume: number) => void
 }
 
+const AMBIENT_VOLUME_BOOST = 3
+
 function startAmbientMusic(initialVolume: number): AmbientHandle {
   const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
   if (!AudioContextClass) return { stop() {}, setVolume() {} }
   const context = new AudioContextClass()
   void context.resume()
   const master = context.createGain()
-  let currentVolume = clampVolume(initialVolume)
+  let currentVolume = boostedAmbientVolume(initialVolume)
   master.gain.value = 0.08 * currentVolume
   master.connect(context.destination)
 
@@ -920,7 +949,7 @@ function startAmbientMusic(initialVolume: number): AmbientHandle {
 
   return {
     setVolume(volume: number) {
-      currentVolume = clampVolume(volume)
+      currentVolume = boostedAmbientVolume(volume)
       const now = context.currentTime
       master.gain.cancelScheduledValues(now)
       master.gain.setTargetAtTime(0.08 * currentVolume, now, 0.08)
@@ -936,6 +965,10 @@ function startAmbientMusic(initialVolume: number): AmbientHandle {
 
 function clampVolume(volume: number) {
   return Math.min(1, Math.max(0, volume))
+}
+
+function boostedAmbientVolume(volume: number) {
+  return clampVolume(volume) * AMBIENT_VOLUME_BOOST
 }
 
 export default App
