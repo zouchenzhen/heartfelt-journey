@@ -11,6 +11,7 @@ import type { EncryptedStoryBundle, LanguageCode, PhotoItem, QuizOption, Scene, 
 type AuthMode = 'plain' | 'encrypted'
 type ErrorKey = '' | 'loadFailed' | 'passwordRejected' | 'codeRejected'
 type GameMode = 'intro' | 'dialog' | 'response' | 'photo' | 'transition' | 'ending'
+type PendingAction = 'advance' | 'celebrate' | null
 type SceneChoice = {
   label: string
   response: string
@@ -188,6 +189,7 @@ function ImmersiveGame({
   const [mode, setMode] = useState<GameMode>('intro')
   const [sceneIndex, setSceneIndex] = useState(0)
   const [response, setResponse] = useState('')
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoItem | null>(null)
   const [celebrating, setCelebrating] = useState(false)
   const [musicEnabled, setMusicEnabled] = useState(false)
@@ -248,39 +250,51 @@ function ImmersiveGame({
 
   function handleChoice(choice: SceneChoice) {
     setResponse(choice.response)
+    setPendingAction(null)
     if (choice.action === 'photo') {
       setSelectedPhoto(scenePhotos[0] || story.photos[0] || null)
       setMode('photo')
       return
     }
     if (choice.action === 'celebrate') {
-      setCelebrating(true)
-      setMode('ending')
+      setPendingAction('celebrate')
+      setMode('response')
       return
     }
     if (choice.action === 'advance') {
+      setPendingAction('advance')
       setMode('response')
-      window.setTimeout(() => {
-        if (nextScene) {
-          setMode('transition')
-          window.setTimeout(() => {
-            setSceneIndex((value) => value + 1)
-            setSelectedPhoto(null)
-            setResponse('')
-            setMode('dialog')
-          }, 850)
-        } else {
-          setCelebrating(true)
-          setMode('ending')
-        }
-      }, choice.correct ? 620 : 900)
       return
     }
     setMode('response')
   }
 
+  function continueAfterResponse() {
+    if (pendingAction === 'celebrate' || !nextScene) {
+      setCelebrating(true)
+      setMode('ending')
+      setPendingAction(null)
+      return
+    }
+
+    if (pendingAction === 'advance') {
+      setMode('transition')
+      window.setTimeout(() => {
+        setSceneIndex((value) => value + 1)
+        setSelectedPhoto(null)
+        setResponse('')
+        setPendingAction(null)
+        setMode('dialog')
+      }, 720)
+      return
+    }
+
+    resumeDialog()
+  }
+
   function resumeDialog() {
     setResponse('')
+    setPendingAction(null)
     setMode('dialog')
   }
 
@@ -326,10 +340,12 @@ function ImmersiveGame({
               mode={mode}
               typedBody={typedBody}
               response={response}
+              pendingAction={pendingAction}
               choices={choices}
               language={language}
               onChoice={handleChoice}
               onResume={resumeDialog}
+              onContinue={continueAfterResponse}
             />
           </>
         )}
@@ -377,20 +393,24 @@ function DialogPanel({
   mode,
   typedBody,
   response,
+  pendingAction,
   choices,
   language,
   onChoice,
   onResume,
+  onContinue,
 }: {
   story: StoryContent
   scene: Scene
   mode: GameMode
   typedBody: string
   response: string
+  pendingAction: PendingAction
   choices: SceneChoice[]
   language: LanguageCode
   onChoice: (choice: SceneChoice) => void
   onResume: () => void
+  onContinue: () => void
 }) {
   if (mode === 'transition') {
     return (
@@ -413,14 +433,21 @@ function DialogPanel({
   }
 
   if (mode === 'response' || mode === 'photo') {
+    const canContinue = Boolean(pendingAction)
     return (
       <section className="game-modal dialog-modal">
         <p className="kicker">{scene.eyebrow}</p>
         <h2>{mode === 'photo' ? (language === 'zh-CN' ? '记忆照片弹出' : 'Memory photo opened') : scene.title}</h2>
         <p className="dialog-text">{response}</p>
-        <button type="button" className="choice-button primary" onClick={onResume}>
+        <button type="button" className="choice-button primary" onClick={canContinue ? onContinue : onResume}>
           <ChevronRight aria-hidden="true" />
-          {language === 'zh-CN' ? '回到弹窗选择' : 'Back to choices'}
+          {canContinue
+            ? language === 'zh-CN'
+              ? '看完了，继续下一步'
+              : 'Continue after reading'
+            : language === 'zh-CN'
+              ? '回到弹窗选择'
+              : 'Back to choices'}
         </button>
       </section>
     )
@@ -473,21 +500,22 @@ function LoveCanvas({ title, active }: { title: string; active: boolean }) {
 
     let frame = 0
     let raf = 0
-    const particles = Array.from({ length: 150 }, (_, index) => ({
+    const particles = Array.from({ length: 560 }, (_, index) => ({
       seed: index * 17,
       t: Math.random() * Math.PI * 2,
-      orbit: 0.8 + Math.random() * 0.46,
-      size: 3 + Math.random() * 7,
-      speed: 0.004 + Math.random() * 0.004,
+      orbit: 0.2 + Math.random() * 1.04,
+      layer: index % 3,
+      size: 4 + Math.random() * 8,
+      speed: 0.0018 + Math.random() * 0.003,
       alpha: 0.35 + Math.random() * 0.55,
     }))
-    const floaters = Array.from({ length: 18 }, (_, index) => ({
-      text: index % 3 === 0 ? title : index % 3 === 1 ? '💗' : '520',
+    const floaters = Array.from({ length: 14 }, (_, index) => ({
+      text: index % 5 === 0 ? title : index % 2 === 0 ? '💗' : '520',
       x: Math.random(),
       y: Math.random(),
-      speed: 0.18 + Math.random() * 0.28,
-      size: 18 + Math.random() * 18,
-      alpha: 0.22 + Math.random() * 0.32,
+      speed: 0.16 + Math.random() * 0.22,
+      size: index % 5 === 0 ? 20 + Math.random() * 12 : 18 + Math.random() * 20,
+      alpha: index % 5 === 0 ? 0.1 + Math.random() * 0.08 : 0.22 + Math.random() * 0.24,
     }))
 
     function resize() {
@@ -531,15 +559,19 @@ function LoveCanvas({ title, active }: { title: string; active: boolean }) {
       context.fillRect(0, 0, width, height)
 
       const cx = width / 2
-      const cy = height / 2 - height * 0.04
-      const base = Math.min(width, height) * 0.012
-      const pulse = 1 + Math.sin(frame * 0.055) * 0.1
-      const colors = ['#ff6ea6', '#ff96bf', '#ffc3d6', '#22c7a9']
+      const cy = height / 2 - height * 0.09
+      const base = Math.min(width, height) * 0.014
+      const pulse = 1 + Math.sin(frame * 0.06) * 0.14
+      const swayX = Math.sin(frame * 0.012) * Math.min(width, height) * 0.018
+      const swayY = Math.cos(frame * 0.01) * Math.min(width, height) * 0.012
+      const colors = ['#ff5f9f', '#ff7fb0', '#ff96bf', '#ffc3d6', '#c9fff2']
 
       particles.forEach((particle, index) => {
         particle.t += particle.speed * (active ? 1.8 : 1)
-        const point = heartPoint(particle.t + particle.seed, base * pulse * particle.orbit)
-        drawHeart(cx + point.x, cy + point.y, particle.size, colors[index % colors.length], particle.alpha)
+        const layerScale = [0.86, 1, 1.15][particle.layer]
+        const point = heartPoint(particle.t + particle.seed, base * pulse * particle.orbit * layerScale)
+        const drift = Math.sin(frame * 0.02 + particle.seed) * 4
+        drawHeart(cx + swayX + point.x + drift, cy + swayY + point.y, particle.size, colors[index % colors.length], particle.alpha)
       })
 
       floaters.forEach((floater, index) => {
@@ -666,8 +698,9 @@ function startAmbientMusic(): AmbientHandle {
   const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
   if (!AudioContextClass) return { stop() {} }
   const context = new AudioContextClass()
+  void context.resume()
   const master = context.createGain()
-  master.gain.value = 0.026
+  master.gain.value = 0.08
   master.connect(context.destination)
 
   const notes = [261.63, 329.63, 392, 523.25]
@@ -676,7 +709,7 @@ function startAmbientMusic(): AmbientHandle {
     const gain = context.createGain()
     oscillator.type = index % 2 === 0 ? 'sine' : 'triangle'
     oscillator.frequency.value = frequency
-    gain.gain.value = 0.18 / notes.length
+    gain.gain.value = 0.22 / notes.length
     oscillator.connect(gain)
     gain.connect(master)
     oscillator.start()
@@ -687,13 +720,31 @@ function startAmbientMusic(): AmbientHandle {
     const now = context.currentTime
     master.gain.cancelScheduledValues(now)
     master.gain.setValueAtTime(master.gain.value, now)
-    master.gain.linearRampToValueAtTime(0.04, now + 0.6)
-    master.gain.linearRampToValueAtTime(0.024, now + 1.8)
+    master.gain.linearRampToValueAtTime(0.1, now + 0.4)
+    master.gain.linearRampToValueAtTime(0.065, now + 1.6)
   }, 2200)
+  const melody = [523.25, 659.25, 783.99, 659.25, 587.33, 659.25, 523.25, 392]
+  let step = 0
+  const melodyTimer = window.setInterval(() => {
+    const now = context.currentTime
+    const oscillator = context.createOscillator()
+    const gain = context.createGain()
+    oscillator.type = 'sine'
+    oscillator.frequency.value = melody[step % melody.length]
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.exponentialRampToValueAtTime(0.06, now + 0.03)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42)
+    oscillator.connect(gain)
+    gain.connect(master)
+    oscillator.start(now)
+    oscillator.stop(now + 0.44)
+    step += 1
+  }, 420)
 
   return {
     stop() {
       window.clearInterval(timer)
+      window.clearInterval(melodyTimer)
       oscillators.forEach((oscillator) => oscillator.stop())
       context.close()
     },

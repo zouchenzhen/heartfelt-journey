@@ -198,7 +198,7 @@
 }
 
 .game-modal {
-  width: min(780px, calc(100vw - 28px));
+  width: min(620px, calc(100vw - 28px));
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
   background:
@@ -255,20 +255,22 @@
 }
 
 .game-modal h1 {
-  font-size: clamp(42px, 8vw, 82px);
+  font-size: clamp(34px, 7vw, 62px);
 }
 
 .game-modal h2 {
-  font-size: clamp(30px, 5vw, 58px);
+  font-size: clamp(24px, 3.8vw, 38px);
 }
 
 .dialog-text {
-  min-height: 2.8em;
-  max-width: 680px;
+  min-height: 0;
+  max-width: 580px;
+  max-height: 6.2em;
+  overflow: auto;
   margin: 0;
   color: rgba(255, 255, 255, 0.82);
-  font-size: clamp(16px, 2.2vw, 21px);
-  line-height: 1.72;
+  font-size: clamp(14px, 1.55vw, 17px);
+  line-height: 1.58;
 }
 
 .typing::after {
@@ -285,10 +287,12 @@
 .dialog-modal {
   position: fixed;
   left: 50%;
-  bottom: clamp(18px, 6vh, 58px);
+  bottom: clamp(16px, 3.5vh, 28px);
   display: grid;
-  gap: 14px;
-  padding: clamp(18px, 4vw, 28px);
+  gap: 10px;
+  max-height: 34vh;
+  overflow: auto;
+  padding: clamp(14px, 2.5vw, 20px);
   transform: translateX(-50%);
 }
 
@@ -299,7 +303,7 @@
 }
 
 .choice-button {
-  min-height: 46px;
+  min-height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -308,8 +312,9 @@
   border-radius: 8px;
   color: #fff;
   background: rgba(255, 255, 255, 0.1);
-  padding: 0 14px;
+  padding: 0 12px;
   font-weight: 800;
+  font-size: 14px;
   transition:
     transform 0.18s ease,
     background 0.18s ease,
@@ -386,9 +391,9 @@
 
 .photo-portal {
   position: fixed;
-  top: clamp(94px, 13vh, 130px);
+  top: clamp(74px, 10vh, 104px);
   left: 50%;
-  width: min(420px, calc(100vw - 52px));
+  width: min(520px, 42vw, calc(100vw - 52px));
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
   background: rgba(13, 13, 18, 0.48);
@@ -399,7 +404,7 @@
 }
 
 .photo-portal.spotlight {
-  width: min(560px, calc(100vw - 38px));
+  width: min(600px, 48vw, calc(100vw - 38px));
   transform: translateX(-50%) rotate(0deg) scale(1.02);
 }
 
@@ -490,6 +495,7 @@
   .dialog-modal {
     bottom: 14px;
     width: calc(100vw - 24px);
+    max-height: 42vh;
   }
 
   .choice-grid {
