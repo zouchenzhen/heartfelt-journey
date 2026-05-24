@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import clsx from 'clsx'
-import { ChevronRight, Gamepad2, Globe2, Heart, KeyRound, LockKeyhole, Music, ShieldCheck, Sparkles } from 'lucide-react'
+import { ChevronRight, Gamepad2, Globe2, Heart, KeyRound, LockKeyhole, Music, ShieldCheck, Sparkles, Volume2 } from 'lucide-react'
 import './App.css'
 import { DEFAULT_LANGUAGE, LANGUAGE_LABELS, UI_TEXT, localizeStory } from './i18n'
 import { decryptStory, verifyAccessCode } from './lib/crypto'
@@ -193,6 +193,7 @@ function ImmersiveGame({
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoItem | null>(null)
   const [celebrating, setCelebrating] = useState(false)
   const [musicEnabled, setMusicEnabled] = useState(false)
+  const [musicVolume, setMusicVolume] = useState(0.68)
   const [typedBody, setTypedBody] = useState('')
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const ambientRef = useRef<AmbientHandle | null>(null)
@@ -227,6 +228,11 @@ function ImmersiveGame({
     }
   }, [])
 
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = musicVolume
+    ambientRef.current?.setVolume(musicVolume)
+  }, [musicVolume])
+
   function startGame() {
     activateMusic()
     setMode('dialog')
@@ -235,11 +241,11 @@ function ImmersiveGame({
   function activateMusic() {
     const audio = audioRef.current
     if (track && audio) {
-      audio.volume = 0.8
+      audio.volume = musicVolume
       audio.play().then(() => setMusicEnabled(true)).catch(() => setMusicEnabled(false))
       return
     }
-    if (!ambientRef.current) ambientRef.current = startAmbientMusic()
+    if (!ambientRef.current) ambientRef.current = startAmbientMusic(musicVolume)
     setMusicEnabled(true)
   }
 
@@ -318,14 +324,29 @@ function ImmersiveGame({
       {track ? <audio ref={audioRef} src={track.src} loop preload="metadata" /> : null}
       <LoveCanvas title={story.meta.title} active={musicEnabled || celebrating} />
       <LanguageSwitch language={language} onLanguageChange={onLanguageChange} />
-      <button
-        type="button"
-        className={clsx('music-pill', musicEnabled && 'active')}
-        onClick={toggleMusic}
-      >
-        <Music aria-hidden="true" />
-        {language === 'zh-CN' ? (musicEnabled ? '甜甜 BGM 开' : '开启 BGM') : musicEnabled ? 'BGM on' : 'Start BGM'}
-      </button>
+      <div className="music-controls">
+        <button
+          type="button"
+          className={clsx('music-pill', musicEnabled && 'active')}
+          onClick={toggleMusic}
+        >
+          <Music aria-hidden="true" />
+          {language === 'zh-CN' ? (musicEnabled ? '甜甜 BGM 开' : '开启 BGM') : musicEnabled ? 'BGM on' : 'Start BGM'}
+        </button>
+        <label className="volume-control">
+          <Volume2 aria-hidden="true" />
+          <span>{language === 'zh-CN' ? '音量' : 'Volume'}</span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.02"
+            value={musicVolume}
+            onChange={(event) => setMusicVolume(Number(event.currentTarget.value))}
+            aria-label={language === 'zh-CN' ? '背景音乐音量' : 'Background music volume'}
+          />
+        </label>
+      </div>
 
       <div className="quest-hud" aria-label={language === 'zh-CN' ? '主线进度' : 'Quest progress'}>
         <span>{String(sceneIndex + 1).padStart(2, '0')}</span>
@@ -341,19 +362,23 @@ function ImmersiveGame({
         ) : (
           <>
             <PhotoPortal photo={featuredPhoto} mode={mode} />
-            <DialogPanel
-              story={story}
-              scene={currentScene}
-              mode={mode}
-              typedBody={typedBody}
-              response={response}
-              pendingAction={pendingAction}
-              choices={choices}
-              language={language}
-              onChoice={handleChoice}
-              onResume={resumeDialog}
-              onContinue={continueAfterResponse}
-            />
+            {mode === 'photo' ? (
+              <PhotoViewActions response={response} language={language} onResume={resumeDialog} />
+            ) : (
+              <DialogPanel
+                story={story}
+                scene={currentScene}
+                mode={mode}
+                typedBody={typedBody}
+                response={response}
+                pendingAction={pendingAction}
+                choices={choices}
+                language={language}
+                onChoice={handleChoice}
+                onResume={resumeDialog}
+                onContinue={continueAfterResponse}
+              />
+            )}
           </>
         )}
       </section>
@@ -439,12 +464,12 @@ function DialogPanel({
     )
   }
 
-  if (mode === 'response' || mode === 'photo') {
+  if (mode === 'response') {
     const canContinue = Boolean(pendingAction)
     return (
       <section className="game-modal dialog-modal">
         <p className="kicker">{scene.eyebrow}</p>
-        <h2>{mode === 'photo' ? (language === 'zh-CN' ? '记忆照片弹出' : 'Memory photo opened') : scene.title}</h2>
+        <h2>{scene.title}</h2>
         <p className="dialog-text">{response}</p>
         <button type="button" className="choice-button primary" onClick={canContinue ? onContinue : onResume}>
           <ChevronRight aria-hidden="true" />
@@ -478,6 +503,26 @@ function DialogPanel({
         ))}
       </div>
     </section>
+  )
+}
+
+function PhotoViewActions({
+  response,
+  language,
+  onResume,
+}: {
+  response: string
+  language: LanguageCode
+  onResume: () => void
+}) {
+  return (
+    <aside className="photo-actions" aria-label={language === 'zh-CN' ? '照片查看操作' : 'Photo actions'}>
+      <p>{response}</p>
+      <button type="button" className="choice-button primary" onClick={onResume}>
+        <ChevronRight aria-hidden="true" />
+        {language === 'zh-CN' ? '看完了，回到选择' : 'Back to choices'}
+      </button>
+    </aside>
   )
 }
 
@@ -699,15 +744,17 @@ function buildChoices(scene: Scene, hasNext: boolean, language: LanguageCode): S
 
 type AmbientHandle = {
   stop: () => void
+  setVolume: (volume: number) => void
 }
 
-function startAmbientMusic(): AmbientHandle {
+function startAmbientMusic(initialVolume: number): AmbientHandle {
   const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-  if (!AudioContextClass) return { stop() {} }
+  if (!AudioContextClass) return { stop() {}, setVolume() {} }
   const context = new AudioContextClass()
   void context.resume()
   const master = context.createGain()
-  master.gain.value = 0.08
+  let currentVolume = clampVolume(initialVolume)
+  master.gain.value = 0.08 * currentVolume
   master.connect(context.destination)
 
   const notes = [261.63, 329.63, 392, 523.25]
@@ -727,8 +774,8 @@ function startAmbientMusic(): AmbientHandle {
     const now = context.currentTime
     master.gain.cancelScheduledValues(now)
     master.gain.setValueAtTime(master.gain.value, now)
-    master.gain.linearRampToValueAtTime(0.1, now + 0.4)
-    master.gain.linearRampToValueAtTime(0.065, now + 1.6)
+    master.gain.linearRampToValueAtTime(0.1 * currentVolume, now + 0.4)
+    master.gain.linearRampToValueAtTime(0.065 * currentVolume, now + 1.6)
   }, 2200)
   const melody = [523.25, 659.25, 783.99, 659.25, 587.33, 659.25, 523.25, 392]
   let step = 0
@@ -749,6 +796,12 @@ function startAmbientMusic(): AmbientHandle {
   }, 420)
 
   return {
+    setVolume(volume: number) {
+      currentVolume = clampVolume(volume)
+      const now = context.currentTime
+      master.gain.cancelScheduledValues(now)
+      master.gain.setTargetAtTime(0.08 * currentVolume, now, 0.08)
+    },
     stop() {
       window.clearInterval(timer)
       window.clearInterval(melodyTimer)
@@ -756,6 +809,10 @@ function startAmbientMusic(): AmbientHandle {
       context.close()
     },
   }
+}
+
+function clampVolume(volume: number) {
+  return Math.min(1, Math.max(0, volume))
 }
 
 export default App

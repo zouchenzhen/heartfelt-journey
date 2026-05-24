@@ -62,12 +62,14 @@
 }
 
 .language-switch,
+.music-controls,
 .music-pill,
 .quest-hud,
 .tap-hint,
 .memory-stage,
 .game-modal,
-.photo-portal {
+.photo-portal,
+.photo-actions {
   position: relative;
   z-index: 3;
 }
@@ -111,11 +113,18 @@
   background: #ffd1e2;
 }
 
-.music-pill {
+.music-controls {
   position: fixed;
   top: 18px;
   right: 172px;
   z-index: 8;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.music-pill {
+  position: static;
   min-height: 38px;
   display: inline-flex;
   align-items: center;
@@ -131,6 +140,37 @@
 .music-pill.active {
   color: #16151a;
   background: #c9fff2;
+}
+
+.volume-control {
+  min-height: 38px;
+  width: 142px;
+  display: grid;
+  grid-template-columns: 16px auto 1fr;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(11, 11, 13, 0.52);
+  padding: 0 10px;
+  backdrop-filter: blur(16px);
+}
+
+.volume-control svg {
+  width: 16px;
+  height: 16px;
+}
+
+.volume-control span {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.volume-control input {
+  width: 100%;
+  min-width: 0;
+  accent-color: #c9fff2;
 }
 
 .music-pill svg,
@@ -433,6 +473,36 @@
   line-height: 1.44;
 }
 
+.photo-actions {
+  position: fixed;
+  right: clamp(18px, 4vw, 44px);
+  bottom: clamp(18px, 4vh, 34px);
+  z-index: 7;
+  width: min(290px, calc(100vw - 32px));
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(37, 26, 36, 0.78), rgba(13, 13, 18, 0.84)),
+    rgba(13, 13, 18, 0.72);
+  padding: 10px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(18px);
+}
+
+.photo-actions p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.photo-actions .choice-button {
+  min-height: 34px;
+  font-size: 13px;
+}
+
 .transition-modal {
   text-align: center;
   justify-items: center;
@@ -472,15 +542,30 @@
     right: 12px;
   }
 
-  .music-pill {
+  .music-controls {
     top: 58px;
     right: 12px;
+    gap: 6px;
+  }
+
+  .music-pill {
     min-height: 34px;
     max-width: 118px;
     overflow: hidden;
     padding: 0 10px;
     font-size: 13px;
     white-space: nowrap;
+  }
+
+  .volume-control {
+    min-height: 34px;
+    width: 100px;
+    grid-template-columns: 15px 1fr;
+    padding: 0 8px;
+  }
+
+  .volume-control span {
+    display: none;
   }
 
   .quest-hud {
@@ -504,6 +589,17 @@
     left: 50%;
     top: 124px;
     width: min(330px, calc(100vw - 28px));
+  }
+
+  .photo-portal.spotlight {
+    width: min(350px, calc(100vw - 28px));
+    transform: translateX(-50%) rotate(0deg);
+  }
+
+  .photo-actions {
+    right: 12px;
+    bottom: 14px;
+    width: min(250px, calc(100vw - 24px));
   }
 
   .dialog-modal {
