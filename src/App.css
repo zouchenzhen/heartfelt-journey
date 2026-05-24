@@ -392,8 +392,8 @@
 .photo-portal {
   position: fixed;
   top: clamp(74px, 10vh, 104px);
-  left: 50%;
-  width: min(520px, 42vw, calc(100vw - 52px));
+  left: 31%;
+  width: min(430px, 34vw, calc(100vw - 52px));
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
   background: rgba(13, 13, 18, 0.48);
@@ -404,7 +404,7 @@
 }
 
 .photo-portal.spotlight {
-  width: min(600px, 48vw, calc(100vw - 38px));
+  width: min(520px, 40vw, calc(100vw - 38px));
   transform: translateX(-50%) rotate(0deg) scale(1.02);
 }
 
@@ -475,12 +475,25 @@
   .music-pill {
     top: 58px;
     right: 12px;
+    min-height: 34px;
+    max-width: 118px;
+    overflow: hidden;
+    padding: 0 10px;
+    font-size: 13px;
+    white-space: nowrap;
   }
 
   .quest-hud {
     top: 14px;
     left: 12px;
-    grid-template-columns: 42px minmax(120px, 180px);
+    grid-template-columns: 42px 108px;
+  }
+
+  .quest-hud strong {
+    max-width: 108px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .memory-stage {
@@ -488,6 +501,7 @@
   }
 
   .photo-portal {
+    left: 50%;
     top: 124px;
     width: min(330px, calc(100vw - 28px));
   }
@@ -495,7 +509,15 @@
   .dialog-modal {
     bottom: 14px;
     width: calc(100vw - 24px);
-    max-height: 42vh;
+    max-height: 38vh;
+  }
+
+  .game-modal h2 {
+    font-size: clamp(25px, 8vw, 34px);
+  }
+
+  .choice-button {
+    min-height: 36px;
   }
 
   .choice-grid {

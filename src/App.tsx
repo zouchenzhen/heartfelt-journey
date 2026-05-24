@@ -222,30 +222,37 @@ function ImmersiveGame({
   }, [currentScene.body, mode])
 
   useEffect(() => {
-    const audio = audioRef.current
-    if (track && audio) {
-      if (musicEnabled) audio.play().catch(() => setMusicEnabled(false))
-      else audio.pause()
-      return
-    }
-
-    if (musicEnabled && !ambientRef.current) {
-      ambientRef.current = startAmbientMusic()
-    } else if (!musicEnabled && ambientRef.current) {
-      ambientRef.current.stop()
-      ambientRef.current = null
-    }
-  }, [musicEnabled, track])
-
-  useEffect(() => {
     return () => {
       ambientRef.current?.stop()
     }
   }, [])
 
   function startGame() {
-    setMusicEnabled(true)
+    activateMusic()
     setMode('dialog')
+  }
+
+  function activateMusic() {
+    const audio = audioRef.current
+    if (track && audio) {
+      audio.volume = 0.8
+      audio.play().then(() => setMusicEnabled(true)).catch(() => setMusicEnabled(false))
+      return
+    }
+    if (!ambientRef.current) ambientRef.current = startAmbientMusic()
+    setMusicEnabled(true)
+  }
+
+  function deactivateMusic() {
+    audioRef.current?.pause()
+    ambientRef.current?.stop()
+    ambientRef.current = null
+    setMusicEnabled(false)
+  }
+
+  function toggleMusic() {
+    if (musicEnabled) deactivateMusic()
+    else activateMusic()
   }
 
   function handleChoice(choice: SceneChoice) {
@@ -314,7 +321,7 @@ function ImmersiveGame({
       <button
         type="button"
         className={clsx('music-pill', musicEnabled && 'active')}
-        onClick={() => setMusicEnabled((value) => !value)}
+        onClick={toggleMusic}
       >
         <Music aria-hidden="true" />
         {language === 'zh-CN' ? (musicEnabled ? '甜甜 BGM 开' : '开启 BGM') : musicEnabled ? 'BGM on' : 'Start BGM'}
@@ -560,7 +567,7 @@ function LoveCanvas({ title, active }: { title: string; active: boolean }) {
 
       const cx = width / 2
       const cy = height / 2 - height * 0.09
-      const base = Math.min(width, height) * 0.014
+      const base = Math.min(width, height) * 0.016
       const pulse = 1 + Math.sin(frame * 0.06) * 0.14
       const swayX = Math.sin(frame * 0.012) * Math.min(width, height) * 0.018
       const swayY = Math.cos(frame * 0.01) * Math.min(width, height) * 0.012
