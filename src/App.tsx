@@ -609,16 +609,17 @@ function FoldButton({
 }
 
 function CollapsedDialogTab({ language, onExpand }: { language: LanguageCode; onExpand: () => void }) {
+  const label = language === 'zh-CN' ? '任务交互' : 'Quest'
   return (
     <button
       type="button"
       className="dialog-edge-tab"
       onClick={onExpand}
-      aria-label={language === 'zh-CN' ? '展开弹窗' : 'Expand dialog'}
-      title={language === 'zh-CN' ? '展开弹窗' : 'Expand dialog'}
+      aria-label={label}
+      title={label}
     >
       <Maximize2 aria-hidden="true" />
-      <span>{language === 'zh-CN' ? '展开' : 'Open'}</span>
+      <span>{label}</span>
     </button>
   )
 }
@@ -683,6 +684,15 @@ function LoveCanvas({ title, active }: { title: string; active: boolean }) {
       size: 4 + Math.random() * 8,
       speed: 0.0018 + Math.random() * 0.003,
       alpha: 0.35 + Math.random() * 0.55,
+    }))
+    const coreParticles = Array.from({ length: 220 }, (_, index) => ({
+      seed: index * 23,
+      t: Math.random() * Math.PI * 2,
+      fill: Math.sqrt(Math.random()) * 0.62,
+      layer: index % 3,
+      size: 3.5 + Math.random() * 6.5,
+      speed: 0.0012 + Math.random() * 0.0024,
+      alpha: 0.24 + Math.random() * 0.4,
     }))
     const ambientHearts = Array.from({ length: 180 }, (_, index) => ({
       seed: index * 29,
@@ -774,6 +784,21 @@ function LoveCanvas({ title, active }: { title: string; active: boolean }) {
         const point = heartPoint(particle.t + particle.seed, base * pulse * particle.orbit * layerScale)
         const drift = Math.sin(frame * 0.02 + particle.seed) * 4
         drawHeart(cx + swayX + point.x + drift, cy + swayY + point.y, particle.size, colors[index % colors.length], particle.alpha)
+      })
+
+      coreParticles.forEach((particle, index) => {
+        particle.t += particle.speed * (active ? 1.55 : 0.9)
+        const layerScale = [0.78, 0.9, 1.02][particle.layer]
+        const point = heartPoint(particle.t + particle.seed, base * pulse * particle.fill * layerScale)
+        const jitterX = Math.sin(frame * 0.018 + particle.seed) * 6
+        const jitterY = Math.cos(frame * 0.015 + particle.seed) * 5
+        drawHeart(
+          cx + swayX + point.x + jitterX,
+          cy + swayY + point.y + jitterY,
+          particle.size,
+          colors[(index + 1) % colors.length],
+          particle.alpha,
+        )
       })
 
       floaters.forEach((floater, index) => {
